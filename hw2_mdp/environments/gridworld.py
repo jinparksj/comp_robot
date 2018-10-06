@@ -134,7 +134,7 @@ class gridEnv():
             heading = heading
         return heading
 
-    def moveChar(self, heading, moving, turn):
+    def moveChar(self, moving, heading, turn, pe):
         # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
         #
         # 1. moving or not moving
@@ -156,6 +156,16 @@ class gridEnv():
         robotY = robot.y
         penalize = 0.
 
+        noise = np.random.randn(1)
+
+        if noise <= pe:
+            prerot = 1 #pre-rotation right
+        elif pe < noise and noise <= 2 * pe:
+            prerot = -1 #pre-rotation left
+        else:
+            prerot = 0
+
+        heading = heading + prerot
 
         if moving == 'move': #forwards or backwards with pre-rotation error
             if heading == 2 and robot.x <= self.sizeX - 2:
@@ -223,5 +233,52 @@ class gridEnv():
                 self.objects.remove(other)
                 if other.reward == 1:
                     self.objects.append(gridObs(self.position('goal'), 1, 1, 1, 1, 'goal'))
-                elif other.reward == -100:
-                    self.objects.append(gridObs(self.position))
+
+                elif other.reward == -100: # 2. borders
+
+                    topborderList = []
+                    leftborderList = []
+                    rightborderList = []
+                    bottomborderList = []
+
+                    for i in range(6):
+                        topborderList.append(gridObs((0, i), 1, 1, 0, -100, 'topborder{0}'.format(i)))
+                        self.objects.append(topborderList[i])
+
+                    for i in range(6):
+                        bottomborderList.append(gridObs((5, i), 1, 1, 0, -100, 'bottomborder{0}'.format(i)))
+                        self.objects.append(bottomborderList[i])
+
+                    for i in range(4):
+                        leftborderList.append(gridObs((i + 1, 0), 1, 1, 0, -100, 'leftborder{0}'.format(i)))
+                        self.objects.append(leftborderList[i])
+
+                    for i in range(4):
+                        rightborderList.append(
+                            gridObs((i + 1, 5), 1, 1, 3, -100, 'rightborder{0}'.format(i)))
+                        self.objects.append(rightborderList[i])
+
+                elif other.reward == -1: # 3. lane markers
+                    laneList = []
+                    for i in range(6):
+                        laneList.append(gridObs(self.position('lane{0}'.format(i)), 1, 1, 1, -1, 'lane{0}'.format(i)))
+                        self.objects.append(laneList[i])
+                return other.reward, False
+        if ended == False:
+            return 0.0, False
+
+    def step(self, heading, moving, turn):
+        penalty = self.moveChar(moving, heading, turn, pe)
+        reward, done = self.checkGoal()
+        state = self.renderEnv()
+        if reward == None:
+            print(done)
+            print(reward)
+            print(penalty)
+            return state, (reward + penalty), done
+        else:
+            return state, (reward + penalty), done
+
+
+
+
