@@ -15,12 +15,11 @@ class gridObs():
         self.name = name
 
 class gridEnv():
-    def __init__(self, size):
+    def __init__(self, size = 6):
         self.sizeX = size
         self.sizeY = size
         self.actions = 12
         self.objects = []
-        self.partial = partial
         grid = self.reset()
         plt.imshow(grid, interpolation="nearest")
 
@@ -66,7 +65,7 @@ class gridEnv():
             self.objects.append(laneList[i])
 
         #4. goal
-        goal = gridObs(self.position(), 1, 1, 1, 1, 'goal')
+        goal = gridObs(self.position('goal'), 1, 1, 1, 1, 'goal')
         self.objects.append(goal)
 
         state = self.renderEnv()
@@ -89,7 +88,7 @@ class gridEnv():
         #         print(i)
 
         if name == 'robot':
-            loc = 9
+            loc = 7
         elif 'lane' in name:
             if '0' in name:
                 loc = 8
@@ -103,6 +102,8 @@ class gridEnv():
                 loc = 20
             elif '5' in name:
                 loc = 22
+        elif name == 'goal':
+            loc = 9
         return points[loc]
 
     def renderEnv(self):
@@ -124,8 +125,17 @@ class gridEnv():
 
         return grid
 
-    def moveChar(self, heading, moving):
-        # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y direction,
+    def turnChar(self, heading, turn): #left, right, noturn
+        if turn == 'left':
+            heading = np.mod(heading - 1, 12)
+        elif turn == 'right':
+            heading = np.mod(heading + 1, 12)
+        elif turn == 'noturn':
+            heading = heading
+        return heading
+
+    def moveChar(self, heading, moving, turn):
+        # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
         #
         # 1. moving or not moving
         # 2. moving "forwards" and "backwards"
@@ -140,4 +150,78 @@ class gridEnv():
         #   It will not pre-rotate with 1-2*pe
         #   when choosing not moving, no error rotation
         #
-        pass
+
+        robot = self.objects[0]
+        robotX = robot.x
+        robotY = robot.y
+        penalize = 0.
+
+
+        if moving == 'move': #forwards or backwards with pre-rotation error
+            if heading == 2 and robot.x <= self.sizeX - 2:
+                robot.x = np.mod(robot.x + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 3 and robot.x <= self.sizeX - 2:
+                robot.x = np.mod(robot.x + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 4 and robot.x <= self.sizeX - 2:
+                robot.x = np.mod(robot.x + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 8 and robot.x >= 1 :
+                robot.x = np.mod(robot.x - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 9 and robot.x >= 1:
+                robot.x = np.mod(robot.x - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 10 and robot.x >= 1:
+                robot.x = np.mod(robot.x - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 5 and robot.y <= self.sizeY - 2:
+                robot.x = np.mod(robot.y + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 6 and robot.y <= self.sizeY - 2:
+                robot.x = np.mod(robot.y + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 7 and robot.y <= self.sizeY - 2:
+                robot.x = np.mod(robot.y + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 11 and robot.y >= 1:
+                robot.x = np.mod(robot.y - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 0 and robot.y >= 1:
+                robot.x = np.mod(robot.y - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 1 and robot.y >= 1:
+                robot.x = np.mod(robot.y - 1, 12)
+                self.turnChar(heading, turn)
+            else:
+                self.turnChar(heading, turn)
+
+        else: #not moving
+            heading = heading
+            robot.x = robot.x
+            robot.y = robot.y
+
+        if robot.x == robotX and robot.y == robotY:
+            penalize = 0.0
+
+        self.objects[0] = robot
+
+        return penalize
+
+    def checkGoal(self):
+        others = []
+        for obj in self.objects:
+            if obj.name == 'robot':
+                robot = obj
+            else:
+                others.append(obj)
+        ended = False
+
+        for other in others:
+            if robot.x == other.x and robot.y == other.y:
+                self.objects.remove(other)
+                if other.reward == 1:
+                    self.objects.append(gridObs(self.position('goal'), 1, 1, 1, 1, 'goal'))
+                elif other.reward == -100:
+                    self.objects.append(gridObs(self.position))
