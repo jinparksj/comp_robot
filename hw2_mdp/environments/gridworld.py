@@ -15,11 +15,14 @@ class gridObs():
         self.name = name
 
 class gridEnv():
-    def __init__(self, size = 6):
+    def __init__(self, size = 6, robotloc = (1, 1)):
         self.sizeX = size
         self.sizeY = size
         self.actions = 12
         self.objects = []
+        self.robotloc = (1, 1)
+        self.nS = size * size
+        self.nA = 4
         grid = self.reset()
         plt.imshow(grid, interpolation="nearest")
 
@@ -27,7 +30,7 @@ class gridEnv():
         self.objects = []
 
         #1. robot
-        robot = gridObs(self.position('robot'), 1, 1, 2, None, 'robot')
+        robot = gridObs(self.robotloc, 1, 1, 2, None, 'robot')
         self.objects.append(robot)
         '''
         borderList = ['border1', 'border2', 'border3', 'border4', 'border5', 'border6', 'border7', 'border8', \
@@ -55,13 +58,13 @@ class gridEnv():
 
         for i in range(4):
             rightborderList.append(
-                gridObs((i+1, 5), 1, 1, 3, -100, 'rightborder{0}'.format(i)))
+                gridObs((i+1, 5), 1, 1, 0, -100, 'rightborder{0}'.format(i)))
             self.objects.append(rightborderList[i])
 
         #3. lane markers
         laneList = []
         for i in range(6):
-            laneList.append(gridObs(self.position('lane{0}'.format(i)), 1, 1, 1, -1, 'lane{0}'.format(i)))
+            laneList.append(gridObs(self.position('lane{0}'.format(i)), 1, 1, 0, -1, 'lane{0}'.format(i)))
             self.objects.append(laneList[i])
 
         #4. goal
@@ -80,16 +83,14 @@ class gridEnv():
         for objectA in self.objects:
             if (objectA.x, objectA.y) not in curPosition:
                 curPosition.append((objectA.x, objectA.y))
-        for pos in curPosition:
-            points.remove(pos)
+        # for pos in curPosition:
+        #     points.remove(pos)
 
         # for i in borderList:
         #     if 'border' in i:
         #         print(i)
 
-        if name == 'robot':
-            loc = 7
-        elif 'lane' in name:
+        if 'lane' in name:
             if '0' in name:
                 loc = 8
             elif '1' in name:
@@ -134,11 +135,11 @@ class gridEnv():
             heading = heading
         return heading
 
-    def moveChar(self, moving, heading, turn, pe):
+    def moveChar(self, moving_direction, heading, turn, pe):
         # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
-        #
+        # moving_direction: 'forward', 'backward', 'nomove'
         # 1. moving or not moving
-        # 2. moving "forwards" and "backwards"
+        # 2. moving "forwards" and "backwards" with direction
         #   - when moving, cause pre-rotation error
         #   - rounded to the nearest cardinal direction
         # 3. after moving, choose 1) turn left, 2) not turn, 3) turn right
@@ -158,16 +159,17 @@ class gridEnv():
 
         noise = np.random.randn(1)
 
-        if noise <= pe:
+        if noise < pe:
             prerot = 1 #pre-rotation right
-        elif pe < noise and noise <= 2 * pe:
+        elif pe <= noise and noise <= 2 * pe:
             prerot = -1 #pre-rotation left
         else:
             prerot = 0
 
-        heading = heading + prerot
 
-        if moving == 'move': #forwards or backwards with pre-rotation error
+
+        if moving_direction == 'forward': #forwards or backwards with pre-rotation error
+            heading = heading + prerot
             if heading == 2 and robot.x <= self.sizeX - 2:
                 robot.x = np.mod(robot.x + 1, 12)
                 self.turnChar(heading, turn)
@@ -206,6 +208,49 @@ class gridEnv():
                 self.turnChar(heading, turn)
             else:
                 self.turnChar(heading, turn)
+
+        elif moving_direction == 'backward': #forwards or backwards with pre-rotation error
+            heading = heading + prerot
+
+            if heading == 8 and robot.x <= self.sizeX - 2:
+                robot.x = np.mod(robot.x + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 9 and robot.x <= self.sizeX - 2:
+                robot.x = np.mod(robot.x + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 10 and robot.x <= self.sizeX - 2:
+                robot.x = np.mod(robot.x + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 2 and robot.x >= 1 :
+                robot.x = np.mod(robot.x - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 3 and robot.x >= 1:
+                robot.x = np.mod(robot.x - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 4 and robot.x >= 1:
+                robot.x = np.mod(robot.x - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 11 and robot.y <= self.sizeY - 2:
+                robot.x = np.mod(robot.y + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 0 and robot.y <= self.sizeY - 2:
+                robot.x = np.mod(robot.y + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 1 and robot.y <= self.sizeY - 2:
+                robot.x = np.mod(robot.y + 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 5 and robot.y >= 1:
+                robot.x = np.mod(robot.y - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 6 and robot.y >= 1:
+                robot.x = np.mod(robot.y - 1, 12)
+                self.turnChar(heading, turn)
+            elif heading == 7 and robot.y >= 1:
+                robot.x = np.mod(robot.y - 1, 12)
+                self.turnChar(heading, turn)
+            else:
+                self.turnChar(heading, turn)
+
 
         else: #not moving
             heading = heading
@@ -267,7 +312,7 @@ class gridEnv():
         if ended == False:
             return 0.0, False
 
-    def step(self, heading, moving, turn):
+    def step(self, heading, moving, turn, pe):
         penalty = self.moveChar(moving, heading, turn, pe)
         reward, done = self.checkGoal()
         state = self.renderEnv()
