@@ -1,6 +1,7 @@
 import random
 from hw2_mdp.env2.gridworld import DisplayGrid, Env
 import numpy as np
+import time
 
 class PolicyIteration():
     def __init__(self, env, discount_factor = 0.9):
@@ -12,6 +13,7 @@ class PolicyIteration():
         self.robot_head_direction = 6
         self.policy_table[1][3] = [] #location of goal
         self.discount_factor = discount_factor
+
 
     def policy_evaluation(self):
         next_value_table = [[0.] * self.env.width for _ in range(self.env.height)]
@@ -30,7 +32,7 @@ class PolicyIteration():
                 next_value = self.get_value(next_state)
                 value = value + (self.get_policy(state)[action] * (reward + self.discount_factor * next_value))
 
-            next_value_table[state[0]][state[1]] = round(value, 2)
+            next_value_table[state[0]][state[1]] = round(value, 5)
 
         self.value_table = next_value_table
 
@@ -114,136 +116,35 @@ class PolicyIteration():
                     self.heading_table[i][j] = [8, 9, 10]
 
 
-    # def get_action(self, state, turn, moving_direction = 'forward', pe = 0.25, heading = 6):
-    #     # state - location of robot (1, 1)
-    #     # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
-    #     # moving_direction: 'forward', 'backward', 'nomove'
-    #     # 1. moving or not moving
-    #     # 2. moving "forwards" and "backwards" with direction
-    #     #   - when moving, cause pre-rotation error
-    #     #   - rounded to the nearest cardinal direction
-    #     # 3. after moving, choose 1) turn left, 2) not turn, 3) turn right
-    #     #     1) left - decrease the heading by 1
-    #     #     3) right - increase the heading by 1
-    #     #     2) robot can also keep the heading constant
-    #     # 4. error probability pe
-    #     #   if the robot chooses to move, it will first rotate by +1 or -1 with pe, before it moves
-    #     #   It will not pre-rotate with 1-2*pe
-    #     #   when choosing not moving, no error rotation
-    #
-    #     robotY = state[0]
-    #     robotX = state[1]
-    #
-    #     noise = np.random.randn(1)
-    #
-    #     threshold = np.random.randn(1)
-    #     policy = self.get_policy(state)
-    #
-    #     if noise < pe:
-    #         prerot = 1  # pre-rotation right
-    #     elif pe <= noise and noise <= 2 * pe:
-    #         prerot = -1  # pre-rotation left
-    #     else:
-    #         prerot = 0
-    #     # action 0, 1, 2, 3 : north, east, south, west
-    #     if moving_direction == 'forward':  # forwards or backwards with pre-rotation error
-    #         heading = heading + prerot
-    #         if heading == 2 and robotX <= self.env.width - 2:
-    #             self.turn_action(heading, turn)
-    #             return 1
-    #         elif heading == 3 and robotX <= self.env.width - 2:
-    #             self.turn_action(heading, turn)
-    #         elif heading == 4 and robot.x <= self.sizeX - 2:
-    #             robot.x = np.mod(robot.x + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 8 and robot.x >= 1:
-    #             robot.x = np.mod(robot.x - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 9 and robot.x >= 1:
-    #             robot.x = np.mod(robot.x - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 10 and robot.x >= 1:
-    #             robot.x = np.mod(robot.x - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 5 and robot.y <= self.sizeY - 2:
-    #             robot.x = np.mod(robot.y + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 6 and robot.y <= self.sizeY - 2:
-    #             robot.x = np.mod(robot.y + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 7 and robot.y <= self.sizeY - 2:
-    #             robot.x = np.mod(robot.y + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 11 and robot.y >= 1:
-    #             robot.x = np.mod(robot.y - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 0 and robot.y >= 1:
-    #             robot.x = np.mod(robot.y - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 1 and robot.y >= 1:
-    #             robot.x = np.mod(robot.y - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         else:
-    #             self.turn_action(heading, turn)
-    #
-    #     elif moving_direction == 'backward':  # forwards or backwards with pre-rotation error
-    #         heading = heading + prerot
-    #
-    #         if heading == 8 and robot.x <= self.sizeX - 2:
-    #             robot.x = np.mod(robot.x + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 9 and robot.x <= self.sizeX - 2:
-    #             robot.x = np.mod(robot.x + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 10 and robot.x <= self.sizeX - 2:
-    #             robot.x = np.mod(robot.x + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 2 and robot.x >= 1:
-    #             robot.x = np.mod(robot.x - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 3 and robot.x >= 1:
-    #             robot.x = np.mod(robot.x - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 4 and robot.x >= 1:
-    #             robot.x = np.mod(robot.x - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 11 and robot.y <= self.sizeY - 2:
-    #             robot.x = np.mod(robot.y + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 0 and robot.y <= self.sizeY - 2:
-    #             robot.x = np.mod(robot.y + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 1 and robot.y <= self.sizeY - 2:
-    #             robot.x = np.mod(robot.y + 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 5 and robot.y >= 1:
-    #             robot.x = np.mod(robot.y - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 6 and robot.y >= 1:
-    #             robot.x = np.mod(robot.y - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         elif heading == 7 and robot.y >= 1:
-    #             robot.x = np.mod(robot.y - 1, 12)
-    #             self.turn_action(heading, turn)
-    #         else:
-    #             self.turn_action(heading, turn)
-    #
-    #
-    #     else:  # not moving
-    #         heading = heading
-    #         robot.x = robot.x
-    #         robot.y = robot.y
-    #
-    #     # need to decide action 0, 1, 2, 3 north, east, south, west
-
-
-
     def get_value(self, state):
-        return round(self.value_table[state[0]][state[1]], 2)
+        return round(self.value_table[state[0]][state[1]], 5)
 
 
 if __name__ == '__main__':
     env = Env()
-    policy_iteration = PolicyIteration(env)
+    policy_iteration = PolicyIteration(env, 0.9)
     grid_world = DisplayGrid(policy_iteration)
     grid_world.mainloop()
+
+    #time check - analysis
+    #
+    # temp =0.
+    # start = time.time()
+    #
+    # while ([0.0, 0.0, 1.0, 0.0] != policy_iteration.policy_table[1][1]) or \
+    #         ([0.0, 0.0, 1.0, 0.0] != policy_iteration.policy_table[2][1]) or \
+    #         ([0.0, 0.0, 1.0, 0.0] !=  policy_iteration.policy_table[3][1]) or \
+    #         ([0.0, 1.0, 0.0, 0.0] != policy_iteration.policy_table[4][1]) or \
+    #         ([0.0, 1.0, 0.0, 0.0] != policy_iteration.policy_table[4][2]) or \
+    #         ([1.0, 0.0, 0.0, 0.0] != policy_iteration.policy_table[4][3]) or \
+    #         ([1.0, 0.0, 0.0, 0.0] != policy_iteration.policy_table[3][3]) or \
+    #         ([1.0, 0.0, 0.0, 0.0] != policy_iteration.policy_table[2][3]):
+    #     grid_world.evaluate_policy()
+    #     grid_world.improve_policy()
+    #     gap = abs(temp - policy_iteration.value_table[2][1])
+    #     temp = policy_iteration.value_table[2][1]
+    #
+    # final = time.time()
+    #
+    # operating_time = final-start
+    # print(operating_time)

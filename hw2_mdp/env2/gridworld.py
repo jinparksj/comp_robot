@@ -26,6 +26,7 @@ class DisplayGrid(tk.Tk):
         self.evalCount = 0
         self.improvCount = 0
         self.is_moving = 0
+        self.pe = 0.25
         (self.north, self.east, self.south, self.west), self.shapes = self.load_images()
         #shapes: 0-robot, 1-border, 2-lane, 3-goal
         self.grid = self._build_grid()
@@ -199,6 +200,30 @@ class DisplayGrid(tk.Tk):
         return heading
 
     def robot_move_display(self, action):
+        # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
+        # moving_direction: 'forward', 'backward', 'nomove'
+        # 1. moving or not moving
+        # 2. moving "forwards" and "backwards" with direction
+        #   - when moving, cause pre-rotation error
+        #   - rounded to the nearest cardinal direction
+        # 3. after moving, choose 1) turn left, 2) not turn, 3) turn right
+        #     1) left - decrease the heading by 1
+        #     3) right - increase the heading by 1
+        #     2) robot can also keep the heading constant
+        # 4. error probability pe
+        #   if the robot chooses to move, it will first rotate by +1 or -1 with pe, before it moves
+        #   It will not pre-rotate with 1-2*pe
+        #   when choosing not moving, no error rotation
+
+        noise = abs(np.random.random(1))
+
+        if noise < self.pe:
+            prerot = 1 #pre-rotation right
+        elif self.pe <= noise and noise <= 2 * self.pe:
+            prerot = -1 #pre-rotation left
+        else:
+            prerot = 0
+
         base_action = np.array([0, 0])
         location = self.find_robot()
         self.render()
@@ -206,8 +231,9 @@ class DisplayGrid(tk.Tk):
 
         #1. heading check
         #forwards
-        current_robot_heading = self.agent.robot_head_direction
-        if current_robot_heading in self.agent.heading_table_forward[location[0]][location[1]]: #forward table
+        self.agent.robot_head_direction = self.agent.robot_head_direction + prerot
+
+        if self.agent.robot_head_direction in self.agent.heading_table_forward[location[0]][location[1]]: #forward table
             if action == 0 and location[0] > 0: #north_y
                 base_action[0] -= UNIT
             elif action == 1 and location[1] < WIDTH - 1: #east_x
@@ -216,7 +242,7 @@ class DisplayGrid(tk.Tk):
                 base_action[0] += UNIT
             elif action == 3 and location[1] > 0: #west_x
                 base_action[1] -= UNIT
-        elif current_robot_heading in self.agent.heading_table_backward[location[0]][location[1]]: #backward table
+        elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]: #backward table
             if action == 0 and location[0] > 0: #north_y
                 base_action[0] -= UNIT
             elif action == 1 and location[1] < WIDTH - 1: #east_x
@@ -226,8 +252,9 @@ class DisplayGrid(tk.Tk):
             elif action == 3 and location[1] > 0: #west_x
                 base_action[1] -= UNIT
         else: #no move and turn
-            if abs(current_robot_heading - self.agent.heading_table_forward[location[0]][location[1]][1]) >= \
-                abs(current_robot_heading - self.agent.heading_table_backward[location[0]][location[1]][1]): #backward
+            self.agent.robot_head_direction = self.agent.robot_head_direction - prerot
+            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) >= \
+                abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]): #backward
                 while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
                     self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'right')
                     base_action = np.array([0, 0])
@@ -240,8 +267,8 @@ class DisplayGrid(tk.Tk):
                     base_action[0] += UNIT
                 elif action == 3 and location[1] > 0:  # west_x
                     base_action[1] -= UNIT
-            elif abs(current_robot_heading - self.agent.heading_table_forward[location[0]][location[1]][1]) < \
-                abs(current_robot_heading - self.agent.heading_table_backward[location[0]][location[1]][1]):
+            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) < \
+                abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]):
                 while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
                     self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'left')
                     base_action = np.array([0, 0])
@@ -315,7 +342,7 @@ class DisplayGrid(tk.Tk):
         #         if abs(self.agent.robot_head_direction - temp_heading[1]) == 6:
 
         self.grid.move(self.robot, base_action[1], base_action[0]) #move(tagOrId, xAmount, yAmount)
-        print(current_robot_heading)
+        print(self.agent.robot_head_direction)
 
 
     def find_robot(self):
@@ -379,7 +406,7 @@ class DisplayGrid(tk.Tk):
 
 
     def render(self):
-        time.sleep(0.1)
+        time.sleep(0.5)
         self.grid.tag_raise(self.robot)
         self.update()
 
