@@ -23,10 +23,10 @@ class DisplayGrid(tk.Tk):
         self.arrows = []
         self.env = Env()
         self.agent = agent
-        self.evalCount = 0
+        self.iterCount = 0
         self.improvCount = 0
         self.is_moving = 0
-        self.pe = 0
+        self.pe = 0.25
         (self.north, self.east, self.south, self.west), self.shapes = self.load_images()
         #shapes: 0-robot, 1-border, 2-lane, 3-goal
         self.grid = self._build_grid()
@@ -154,9 +154,9 @@ class DisplayGrid(tk.Tk):
 
         return grid
 
-    def reset(self):
+    def clear(self):
         if self.is_moving == 0:
-            self.evalCount = 0
+            self.iterCount = 0
             self.improvCount = 0
             for i in self.texts:
                 self.grid.delete(i)
@@ -165,8 +165,6 @@ class DisplayGrid(tk.Tk):
                 self.grid.delete(i)
 
             self.agent.value_table = [[0.0] * WIDTH for _ in range(HEIGHT)]
-            self.agent.policy_table = ([[[0.25, 0.25, 0.25, 0.25]] * WIDTH for _ in range(HEIGHT)])
-            self.agent.policy_table[1][3] = 0
             x, y = self.grid.coords(self.robot)
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
 
@@ -186,10 +184,6 @@ class DisplayGrid(tk.Tk):
         return self.texts.append(text)
 
 
-    def print_value_table(self, value_table):
-        for i in range(WIDTH):
-            for j in range(HEIGHT):
-                self.text_value(i, j, value_table[i][j])
 
 
     def turn_action(self, heading, turn):
@@ -287,7 +281,8 @@ class DisplayGrid(tk.Tk):
             prerot = -1 #pre-rotation left
         else:
             prerot = 0
-
+        if prerot != 0:
+            print('prerotation happened', prerot)
         base_action = np.array([0, 0])
         location = self.find_robot() # robot's y and x position
         self.render()
@@ -303,28 +298,28 @@ class DisplayGrid(tk.Tk):
                 if self.agent.robot_head_direction == 11:
                     while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
                         self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+                        print('no move left turn at (2,3)', self.agent.robot_head_direction)
                 elif self.agent.robot_head_direction == 1:
                     while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
                         self.no_move_right_turn(base_action)
-                    print('no move right turn at (2,3)', self.agent.robot_head_direction)
+                        print('no move right turn at (2,3)', self.agent.robot_head_direction)
                 else:
                     while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
                         self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+                        print('no move left turn at (2,3)', self.agent.robot_head_direction)
             elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]:
                 if self.agent.robot_head_direction == 5:
                     while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
                         self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+                        print('no move left turn at (2,3)', self.agent.robot_head_direction)
                 elif self.agent.robot_head_direction == 7:
                     while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
                         self.no_move_right_turn(base_action)
-                    print('no move right turn at (2,3)', self.agent.robot_head_direction)
+                        print('no move right turn at (2,3)', self.agent.robot_head_direction)
                 else:
                     while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
                         self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+                        print('no move left turn at (2,3)', self.agent.robot_head_direction)
 
 
         if self.agent.robot_head_direction in self.agent.heading_table_forward[location[0]][location[1]]: #forward table
@@ -336,7 +331,7 @@ class DisplayGrid(tk.Tk):
 
         else: #no move and turn
             self.agent.robot_head_direction = self.agent.robot_head_direction - prerot #no prerotation
-            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) > \
+            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) >= \
                 abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]): #backward
                 while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
                     self.no_move_left_turn(base_action)
@@ -346,7 +341,7 @@ class DisplayGrid(tk.Tk):
 
 
 
-            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) <= \
+            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) < \
                 abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]):
                 while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
                     self.no_move_right_turn(base_action)
@@ -372,48 +367,57 @@ class DisplayGrid(tk.Tk):
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
 
             y, x = self.find_robot()
-            while len(self.agent.policy_table[y][x]) != 0:
-                self.after(100, self.robot_move_display(self.agent.get_action([y, x])))
+            while len(self.agent.get_action([y, x])) != 0:
+                action = np.random.choice(self.agent.get_action([y, x]), 1)[0]
+                self.after(100, self.robot_move_display(action))
                 y, x = self.find_robot()
             self.is_moving = 0
 
-    def evaluate_policy(self):
-        self.evalCount += 1
+    def calculate_value(self):
+        self.iterCount += 1
         for i in self.texts:
             self.grid.delete(i)
-        self.agent.policy_evaluation()
+        self.agent.value_iteration()
         self.print_value_table(self.agent.value_table)
 
 
-    def improve_policy(self):
+    def display_optimal_policy(self):
         self.improvCount += 1
         for i in self.arrows:
             self.grid.delete(i)
-        self.agent.policy_improvement()
-        self.draw_from_policy(self.agent.policy_table)
+        for state in self.env.get_all_states():
+            action = self.agent.get_action(state)
+            self.draw_from_values(state, action)
 
-    def draw_from_policy(self, policy_table):
-        for i in range(HEIGHT):
-            for j in range(WIDTH):
-                self.draw_one_arrow(i, j, policy_table[i][j])
+    def draw_from_values(self, state, actionList):
+        i = state[0]
+        j = state[1]
+        for action in actionList:
+            self.draw_one_arrow(i, j, action)
 
-    def draw_one_arrow(self, row, col, policy):
+    def print_value_table(self, value_table):
+        for i in range(WIDTH):
+            for j in range(HEIGHT):
+                self.text_value(i, j, value_table[i][j])
+
+
+    def draw_one_arrow(self, row, col, action):
         if row == 1 and col == 3:
             return
 
-        if policy[0] > 0: #north
+        if action == 0 : #north
             origin_x, origin_y = 50 + (UNIT * col), 10 + (UNIT * row)
             self.arrows.append(self.grid.create_image(origin_x, origin_y, image = self.north))
 
-        if policy[1] > 0: #east
+        elif action == 1: #east
             origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
             self.arrows.append(self.grid.create_image(origin_x, origin_y, image = self.east))
 
-        if policy[2] > 0: #south
+        elif action == 2: #south
             origin_x, origin_y = 50 + (UNIT * col), 90 + (UNIT * row)
             self.arrows.append(self.grid.create_image(origin_x, origin_y, image = self.south))
 
-        if policy[3] > 0: #west
+        elif action == 3: #west
             origin_x, origin_y = 10 + (UNIT * col), 50 + (UNIT * row)
             self.arrows.append(self.grid.create_image(origin_x, origin_y, image = self.west))
 

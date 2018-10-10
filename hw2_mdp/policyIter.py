@@ -123,27 +123,22 @@ if __name__ == '__main__':
     env = Env()
     policy_iteration = PolicyIteration(env, 0.7)
     grid_world = DisplayGrid(policy_iteration)
-    grid_world.mainloop()
+    # grid_world.mainloop()
 
     #time check - analysis
-    #
-    # temp =0.
-    # start = time.time()
-    #
-    # while ([0.0, 0.0, 1.0, 0.0] != policy_iteration.policy_table[1][1]) or \
-    #         ([0.0, 0.0, 1.0, 0.0] != policy_iteration.policy_table[2][1]) or \
-    #         ([0.0, 0.0, 1.0, 0.0] !=  policy_iteration.policy_table[3][1]) or \
-    #         ([0.0, 1.0, 0.0, 0.0] != policy_iteration.policy_table[4][1]) or \
-    #         ([0.0, 1.0, 0.0, 0.0] != policy_iteration.policy_table[4][2]) or \
-    #         ([1.0, 0.0, 0.0, 0.0] != policy_iteration.policy_table[4][3]) or \
-    #         ([1.0, 0.0, 0.0, 0.0] != policy_iteration.policy_table[3][3]) or \
-    #         ([1.0, 0.0, 0.0, 0.0] != policy_iteration.policy_table[2][3]):
-    #     grid_world.evaluate_policy()
-    #     grid_world.improve_policy()
-    #     gap = abs(temp - policy_iteration.value_table[2][1])
-    #     temp = policy_iteration.value_table[2][1]
-    #
-    # final = time.time()
-    #
-    # operating_time = final-start
-    # print(operating_time)
+
+
+    start = time.time()
+    temp_policy_table = []
+    temp_value_table = [[1.] * env.width for _ in range(env.height)]
+    for i in range(10):
+        while temp_policy_table != policy_iteration.policy_table or temp_value_table != policy_iteration.value_table:
+            temp_policy_table = policy_iteration.policy_table
+            temp_value_table = policy_iteration.value_table
+            grid_world.evaluate_policy()
+            grid_world.improve_policy()
+
+        final = time.time()
+
+        operating_time = final-start
+        print(operating_time)
