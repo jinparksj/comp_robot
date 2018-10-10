@@ -80,8 +80,8 @@ class ValueIteration():
                 self.heading_table_forward[state[0]][state[1]] = ['not decided', 'not decided', 'not decided']
                 self.heading_table_backward[state[0]][state[1]] = ['not decided', 'not decided', 'not decided']
 
-        print(self.heading_table_forward)
-        print(self.heading_table_backward)
+        # print(self.heading_table_forward)
+        # print(self.heading_table_backward)
         self.policy_table = next_policy
 
     def get_policy(self, state):

@@ -31,7 +31,6 @@ class PolicyIteration():
                 reward = self.env.get_reward(state, action)
                 next_value = self.get_value(next_state)
                 value = value + (self.get_policy(state)[action] * (reward + self.discount_factor * next_value))
-
             next_value_table[state[0]][state[1]] = round(value, 5)
 
         self.value_table = next_value_table
@@ -82,8 +81,8 @@ class PolicyIteration():
                 self.heading_table_forward[state[0]][state[1]] = ['not decided', 'not decided', 'not decided']
                 self.heading_table_backward[state[0]][state[1]] = ['not decided', 'not decided', 'not decided']
 
-        print(self.heading_table_forward)
-        print(self.heading_table_backward)
+        # print(self.heading_table_forward)
+        # print(self.heading_table_backward)
         self.policy_table = next_policy
 
     def get_policy(self, state):
@@ -122,7 +121,7 @@ class PolicyIteration():
 
 if __name__ == '__main__':
     env = Env()
-    policy_iteration = PolicyIteration(env, 0.9)
+    policy_iteration = PolicyIteration(env, 0.7)
     grid_world = DisplayGrid(policy_iteration)
     grid_world.mainloop()
 

@@ -26,7 +26,7 @@ class DisplayGrid(tk.Tk):
         self.evalCount = 0
         self.improvCount = 0
         self.is_moving = 0
-        self.pe = 0.25
+        self.pe = 0
         (self.north, self.east, self.south, self.west), self.shapes = self.load_images()
         #shapes: 0-robot, 1-border, 2-lane, 3-goal
         self.grid = self._build_grid()
@@ -72,6 +72,7 @@ class DisplayGrid(tk.Tk):
         border = PhotoImage(Image.open('image/border.png').resize((65, 65)))
         lane = PhotoImage(Image.open('image/lane.png').resize((65, 65)))
         goal = PhotoImage(Image.open('image/goal.png').resize((65, 65)))
+
         return (north, east, south, west), (robot, border, lane, goal)
 
     def _build_grid(self):
@@ -95,15 +96,15 @@ class DisplayGrid(tk.Tk):
 
         # 4. Reset
         pol_button = Button(self, text="Reset", command=self.reset)
-        pol_button.configure(width=10, activebackground="#b5e533")
+        pol_button.configure(width=10,activebackground="#b5e533")
         grid.create_window(WIDTH * UNIT * 0.87, HEIGHT * UNIT + 13, window=pol_button)
 
         # Create grid
-        for col in range(0, WIDTH * UNIT, UNIT): #draw horizontal line
+        for col in range(0, WIDTH * UNIT, UNIT): #draw vertical line
             x0, y0, x1, y1 = col, 0, col, HEIGHT * UNIT
             grid.create_line(x0, y0, x1, y1)
 
-        for row in range(0, HEIGHT * UNIT, UNIT): #draw vertical line
+        for row in range(0, HEIGHT * UNIT, UNIT): #draw horizontal line
             x0, y0, x1, y1 = 0, row, HEIGHT * UNIT, row
             grid.create_line(x0, y0, x1, y1)
 
@@ -190,6 +191,7 @@ class DisplayGrid(tk.Tk):
             for j in range(HEIGHT):
                 self.text_value(i, j, value_table[i][j])
 
+
     def turn_action(self, heading, turn):
         if turn == 'left':
             heading = np.mod(heading - 1, 12)
@@ -198,6 +200,67 @@ class DisplayGrid(tk.Tk):
         elif turn == 'noturn':
             heading = heading
         return heading
+
+
+    def move_turn(self, location, action, base_action):
+        if action == 0 and location[0] > 0:  # north_y
+            base_action[0] -= UNIT
+            if self.agent.heading_table_forward[location[0] - 1][location[1]] == [8, 9, 10] \
+                    and location[0] - 1 > 0:  # left
+                self.turn_action(self.agent.robot_head_direction, 'left')
+                print('lookahead turning')
+            if self.agent.heading_table_forward[location[0] - 1][location[1]] == [2, 3, 4] \
+                    and location[0] - 1 > 0:  # right
+                self.turn_action(self.agent.robot_head_direction, 'right')
+                print('lookahead turning')
+
+        elif action == 1 and location[1] < WIDTH - 1:  # east_x
+            base_action[1] += UNIT
+            if self.agent.heading_table_forward[location[0]][location[1] + 1] == [11, 0, 1] \
+                    and location[1] + 1 < WIDTH - 1:  # left
+                self.turn_action(self.agent.robot_head_direction, 'left')
+                print('lookahead turning')
+            if self.agent.heading_table_forward[location[0]][location[1] + 1] == [2, 3, 4] \
+                    and location[1] + 1 < WIDTH - 1:  # right
+                self.turn_action(self.agent.robot_head_direction, 'right')
+                print('lookahead turning')
+
+        elif action == 2 and location[0] < HEIGHT - 1:  # south_y
+            base_action[0] += UNIT
+            if self.agent.heading_table_forward[location[0] + 1][location[1]] == [2, 3, 4] \
+                    and location[0] + 1 < HEIGHT - 1:  # left
+                self.turn_action(self.agent.robot_head_direction, 'left')
+                print('lookahead turning')
+            if self.agent.heading_table_forward[location[0] + 1][location[1]] == [8, 9, 10] \
+                    and location[0] + 1 < HEIGHT - 1:  # right
+                self.turn_action(self.agent.robot_head_direction, 'right')
+                print('lookahead turning')
+
+        elif action == 3 and location[1] > 0:  # west_x
+            base_action[1] -= UNIT
+            if self.agent.heading_table_forward[location[0]][location[1] + 1] == [5, 6, 7] \
+                    and location[1] - 1 > 0:  # left
+                self.turn_action(self.agent.robot_head_direction, 'left')
+                print('lookahead turning')
+
+            if self.agent.heading_table_forward[location[0]][location[1] + 1] == [11, 0, 1] \
+                    and location[1] - 1 > 0:  # right
+                self.turn_action(self.agent.robot_head_direction, 'right')
+                print('lookahead turning')
+
+
+
+        return base_action
+
+    def no_move_left_turn(self, base_action):
+        self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'left')
+        base_action = np.array([0, 0])
+        self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
+
+    def no_move_right_turn(self, base_action):
+        self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'right')
+        base_action = np.array([0, 0])
+        self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
 
     def robot_move_display(self, action):
         # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
@@ -215,6 +278,7 @@ class DisplayGrid(tk.Tk):
         #   It will not pre-rotate with 1-2*pe
         #   when choosing not moving, no error rotation
 
+
         noise = abs(np.random.random(1))
 
         if noise < self.pe:
@@ -225,7 +289,7 @@ class DisplayGrid(tk.Tk):
             prerot = 0
 
         base_action = np.array([0, 0])
-        location = self.find_robot()
+        location = self.find_robot() # robot's y and x position
         self.render()
         # north, east, south, west = 0, 1, 2, 3
 
@@ -233,116 +297,65 @@ class DisplayGrid(tk.Tk):
         #forwards
         self.agent.robot_head_direction = self.agent.robot_head_direction + prerot
 
+        # for 5 additional scenarios
+        if location == (2, 3):
+            if self.agent.robot_head_direction in self.agent.heading_table_forward[location[0]][location[1]]: #[11, 0, 1]
+                if self.agent.robot_head_direction == 11:
+                    while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
+                        self.no_move_left_turn(base_action)
+                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+                elif self.agent.robot_head_direction == 1:
+                    while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
+                        self.no_move_right_turn(base_action)
+                    print('no move right turn at (2,3)', self.agent.robot_head_direction)
+                else:
+                    while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
+                        self.no_move_left_turn(base_action)
+                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+            elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]:
+                if self.agent.robot_head_direction == 5:
+                    while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
+                        self.no_move_left_turn(base_action)
+                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+                elif self.agent.robot_head_direction == 7:
+                    while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
+                        self.no_move_right_turn(base_action)
+                    print('no move right turn at (2,3)', self.agent.robot_head_direction)
+                else:
+                    while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
+                        self.no_move_left_turn(base_action)
+                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
+
+
         if self.agent.robot_head_direction in self.agent.heading_table_forward[location[0]][location[1]]: #forward table
-            if action == 0 and location[0] > 0: #north_y
-                base_action[0] -= UNIT
-            elif action == 1 and location[1] < WIDTH - 1: #east_x
-                base_action[1] += UNIT
-            elif action == 2 and location[0] < HEIGHT - 1: #south_y
-                base_action[0] += UNIT
-            elif action == 3 and location[1] > 0: #west_x
-                base_action[1] -= UNIT
+            base_action = self.move_turn(location, action, base_action)
+
+
         elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]: #backward table
-            if action == 0 and location[0] > 0: #north_y
-                base_action[0] -= UNIT
-            elif action == 1 and location[1] < WIDTH - 1: #east_x
-                base_action[1] += UNIT
-            elif action == 2 and location[0] < HEIGHT - 1: #south_y
-                base_action[0] += UNIT
-            elif action == 3 and location[1] > 0: #west_x
-                base_action[1] -= UNIT
+            base_action = self.move_turn(location, action, base_action)
+
         else: #no move and turn
-            self.agent.robot_head_direction = self.agent.robot_head_direction - prerot
-            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) >= \
+            self.agent.robot_head_direction = self.agent.robot_head_direction - prerot #no prerotation
+            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) > \
                 abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]): #backward
                 while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
-                    self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'right')
-                    base_action = np.array([0, 0])
-                    self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
-                if action == 0 and location[0] > 0:  # north_y
-                    base_action[0] -= UNIT
-                elif action == 1 and location[1] < WIDTH - 1:  # east_x
-                    base_action[1] += UNIT
-                elif action == 2 and location[0] < HEIGHT - 1:  # south_y
-                    base_action[0] += UNIT
-                elif action == 3 and location[1] > 0:  # west_x
-                    base_action[1] -= UNIT
-            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) < \
+                    self.no_move_left_turn(base_action)
+                    print('no move left turn', self.agent.robot_head_direction)
+
+                base_action = self.move_turn(location, action, base_action)
+
+
+
+            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) <= \
                 abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]):
                 while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
-                    self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'left')
-                    base_action = np.array([0, 0])
-                    self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
+                    self.no_move_right_turn(base_action)
+                    print('no move right turn', self.agent.robot_head_direction)
 
-                if action == 0 and location[0] > 0:  # north_y
-                    base_action[0] -= UNIT
-                elif action == 1 and location[1] < WIDTH - 1:  # east_x
-                    base_action[1] += UNIT
-                elif action == 2 and location[0] < HEIGHT - 1:  # south_y
-                    base_action[0] += UNIT
-                elif action == 3 and location[1] > 0:  # west_x
-                    base_action[1] -= UNIT
-
-
-
-
-        # if current_robot_heading in self.agent.heading_table_forward[location[0]][location[1]]:
-        #     if action == 0 and location[0] > 0: #north_y
-        #         base_action[0] -= UNIT
-        #     elif action == 1 and location[1] < WIDTH - 1: #east_x
-        #         base_action[1] += UNIT
-        #     elif action == 2 and location[0] < HEIGHT - 1: #south_y
-        #         base_action[0] += UNIT
-        #     elif action == 3 and location[1] > 0: #west_x
-        #         base_action[1] -= UNIT
-        # else:
-        #     temp_heading = self.agent.heading_table[location[0]][location[1]]
-        #     #forwards
-        #     for i in range(len(self.robot_heading_condition_table)):
-        #         if self.robot_heading_condition_table[i][0] == [current_robot_heading]:
-        #
-        #
-        #
-        #     if abs(self.agent.robot_head_direction - temp_heading[1]) <= 3 or \
-        #             (abs(self.agent.robot_head_direction - temp_heading[1]) >= 9 and \
-        #              np.mod(self.agent.robot_head_direction - temp_heading[1], 12) <= 3):
-        #         #forward - left
-        #         if self.agent.robot_head_direction - self.agent.heading_table[location[0]][location[1]][1] > 0 or \
-        #             abs(self.agent.robot_head_direction - self.agent.heading_table[location[0]][location[1]][1]) >= 9:
-        #             while self.agent.robot_head_direction not in self.agent.heading_table[location[0]][location[1]]:
-        #                 self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'left')
-        #                 base_action = np.array([0, 0])
-        #                 self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
-        #
-        #             if action == 0 and location[0] > 0:  # north_y
-        #                 base_action[0] -= UNIT
-        #             elif action == 1 and location[1] < WIDTH - 1:  # east_x
-        #                 base_action[1] += UNIT
-        #             elif action == 2 and location[0] < HEIGHT - 1:  # south_y
-        #                 base_action[0] += UNIT
-        #             elif action == 3 and location[1] > 0:  # west_x
-        #                 base_action[1] -= UNIT
-        #         #forward - right
-        #         elif self.agent.robot_head_direction - self.agent.heading_table[location[0]][location[1]][1] < 0 or \
-        #             self.agent.robot_head_direction - self.agent.heading_table[location[0]][location[1]][1] == 9:
-        #             while self.agent.robot_head_direction not in self.aagent.heading_table[location[0]][location[1]]:
-        #                 self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'right')
-        #                 base_action = np.array([0, 0])
-        #                 self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
-        #
-        #             if action == 0 and location[0] > 0:  # north_y
-        #                 base_action[0] -= UNIT
-        #             elif action == 1 and location[1] < WIDTH - 1:  # east_x
-        #                 base_action[1] += UNIT
-        #             elif action == 2 and location[0] < HEIGHT - 1:  # south_y
-        #                 base_action[0] += UNIT
-        #             elif action == 3 and location[1] > 0:  # west_x
-        #                 base_action[1] -= UNIT
-        #     else: #backwards
-        #         if abs(self.agent.robot_head_direction - temp_heading[1]) == 6:
+                base_action = self.move_turn(location, action, base_action)
 
         self.grid.move(self.robot, base_action[1], base_action[0]) #move(tagOrId, xAmount, yAmount)
-        print(self.agent.robot_head_direction)
+        print('move',self.agent.robot_head_direction)
 
 
     def find_robot(self):
@@ -409,7 +422,6 @@ class DisplayGrid(tk.Tk):
         time.sleep(0.5)
         self.grid.tag_raise(self.robot)
         self.update()
-
 
 
 class Env():
