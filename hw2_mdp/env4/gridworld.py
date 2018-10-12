@@ -8,9 +8,10 @@ PhotoImage = ImageTk.PhotoImage
 UNIT = 100
 HEIGHT = 6
 WIDTH = 6
+HEADING = 12
 TRANSITION_PROB = 1
-POSSIBLE_ACTIONS = [0, 1, 2, 3] #north, east, south, west
-ACTIONS = [(-1, 0), (0, 1), (1, 0), (0, -1)]
+POSSIBLE_ACTIONS = [0, 1, 2] #move forward, no move, move backward
+ACTIONS = [1, 0, -1]
 REWARDS = []
 
 
@@ -164,9 +165,9 @@ class DisplayGrid(tk.Tk):
             for i in self.arrows:
                 self.grid.delete(i)
 
-            self.agent.value_table = [[0.0] * WIDTH for _ in range(HEIGHT)]
-            self.agent.policy_table = ([[[0.25, 0.25, 0.25, 0.25]] * WIDTH for _ in range(HEIGHT)])
-            self.agent.policy_table[1][3] = 0
+            self.agent.value_table = [[[0. for _ in range(HEADING)] for _ in  range(WIDTH)] for _ in range(HEIGHT)]
+            self.agent.policy_table = [[[[0.3333, 0.3333, 0.3333] for _ in range(HEADING)] for _ in range(WIDTH)] for _ in range(HEIGHT)]
+            self.agent.policy_table[1][3] = []
             x, y = self.grid.coords(self.robot)
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
 
@@ -187,9 +188,9 @@ class DisplayGrid(tk.Tk):
 
 
     def print_value_table(self, value_table):
-        for i in range(WIDTH):
-            for j in range(HEIGHT):
-                self.text_value(i, j, value_table[i][j])
+        for i in range(HEIGHT): #row
+            for j in range(WIDTH): #col
+                    self.text_value(i, j, max(value_table[i][j]))
 
 
     def turn_action(self, heading, turn):
@@ -200,6 +201,57 @@ class DisplayGrid(tk.Tk):
         elif turn == 'noturn':
             heading = heading
         return heading
+
+
+    def robot_move_display(self, action):
+
+        noise = abs(np.random.random(1))
+
+        if noise < self.pe:
+            prerot = 1 #pre-rotation right
+        elif self.pe <= noise and noise <= 2 * self.pe:
+            prerot = -1 #pre-rotation left
+        else:
+            prerot = 0
+
+        base_action = np.array([0, 0])
+        location = self.find_robot() # robot's y and x position
+        self.render()
+        # move forward, no move, backward: 1, 0, -1
+
+
+        self.agent.robot_head_direction = self.agent.robot_head_direction + prerot
+
+        if
+
+        if self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]: #forward table
+            base_action = self.move_turn(location, action, base_action)
+
+        elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]: #backward table
+            base_action = self.move_turn(location, action, base_action)
+
+        else: #no move and turn
+            self.agent.robot_head_direction = self.agent.robot_head_direction - prerot #no prerotation
+            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) >= \
+                abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]): #backward
+                while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
+                    self.no_move_left_turn(base_action)
+                    print('no move left turn', self.agent.robot_head_direction)
+
+                base_action = self.move_turn(location, action, base_action)
+
+
+
+            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) < \
+                abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]):
+                while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
+                    self.no_move_right_turn(base_action)
+                    print('no move right turn', self.agent.robot_head_direction)
+
+                base_action = self.move_turn(location, action, base_action)
+
+        self.grid.move(self.robot, base_action[1], base_action[0]) #move(tagOrId, xAmount, yAmount)
+        print('move',self.agent.robot_head_direction)
 
 
     def move_turn(self, location, action, base_action):
@@ -248,8 +300,6 @@ class DisplayGrid(tk.Tk):
                 self.turn_action(self.agent.robot_head_direction, 'right')
                 print('lookahead turning')
 
-
-
         return base_action
 
     def no_move_left_turn(self, base_action):
@@ -261,101 +311,6 @@ class DisplayGrid(tk.Tk):
         self.agent.robot_head_direction = self.turn_action(self.agent.robot_head_direction, 'right')
         base_action = np.array([0, 0])
         self.grid.move(self.robot, base_action[1], base_action[0])  # move(tagOrId, xAmount, yAmount)
-
-    def robot_move_display(self, action):
-        # 2, 3, 4: forwards as +x, 11, 0, 1: backwards: -y, 5, 6, 7: forward as +y, 8, 9, 10: backward as -x
-        # moving_direction: 'forward', 'backward', 'nomove'
-        # 1. moving or not moving
-        # 2. moving "forwards" and "backwards" with direction
-        #   - when moving, cause pre-rotation error
-        #   - rounded to the nearest cardinal direction
-        # 3. after moving, choose 1) turn left, 2) not turn, 3) turn right
-        #     1) left - decrease the heading by 1
-        #     3) right - increase the heading by 1
-        #     2) robot can also keep the heading constant
-        # 4. error probability pe
-        #   if the robot chooses to move, it will first rotate by +1 or -1 with pe, before it moves
-        #   It will not pre-rotate with 1-2*pe
-        #   when choosing not moving, no error rotation
-
-
-        noise = abs(np.random.random(1))
-
-        if noise < self.pe:
-            prerot = 1 #pre-rotation right
-        elif self.pe <= noise and noise <= 2 * self.pe:
-            prerot = -1 #pre-rotation left
-        else:
-            prerot = 0
-
-        base_action = np.array([0, 0])
-        location = self.find_robot() # robot's y and x position
-        self.render()
-        # north, east, south, west = 0, 1, 2, 3
-
-        #1. heading check
-        #forwards
-        self.agent.robot_head_direction = self.agent.robot_head_direction + prerot
-
-        # for 5 additional scenarios
-        if location == (2, 3):
-            if self.agent.robot_head_direction in self.agent.heading_table_forward[location[0]][location[1]]: #[11, 0, 1]
-                if self.agent.robot_head_direction == 11:
-                    while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
-                        self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
-                elif self.agent.robot_head_direction == 1:
-                    while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
-                        self.no_move_right_turn(base_action)
-                    print('no move right turn at (2,3)', self.agent.robot_head_direction)
-                else:
-                    while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
-                        self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
-            elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]:
-                if self.agent.robot_head_direction == 5:
-                    while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
-                        self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
-                elif self.agent.robot_head_direction == 7:
-                    while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
-                        self.no_move_right_turn(base_action)
-                    print('no move right turn at (2,3)', self.agent.robot_head_direction)
-                else:
-                    while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
-                        self.no_move_left_turn(base_action)
-                    print('no move left turn at (2,3)', self.agent.robot_head_direction)
-
-
-        if self.agent.robot_head_direction in self.agent.heading_table_forward[location[0]][location[1]]: #forward table
-            base_action = self.move_turn(location, action, base_action)
-
-
-        elif self.agent.robot_head_direction in self.agent.heading_table_backward[location[0]][location[1]]: #backward table
-            base_action = self.move_turn(location, action, base_action)
-
-        else: #no move and turn
-            self.agent.robot_head_direction = self.agent.robot_head_direction - prerot #no prerotation
-            if abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) > \
-                abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]): #backward
-                while self.agent.robot_head_direction not in self.agent.heading_table_backward[location[0]][location[1]]:
-                    self.no_move_left_turn(base_action)
-                    print('no move left turn', self.agent.robot_head_direction)
-
-                base_action = self.move_turn(location, action, base_action)
-
-
-
-            elif abs(self.agent.robot_head_direction - self.agent.heading_table_forward[location[0]][location[1]][1]) <= \
-                abs(self.agent.robot_head_direction - self.agent.heading_table_backward[location[0]][location[1]][1]):
-                while self.agent.robot_head_direction not in self.agent.heading_table_forward[location[0]][location[1]]:
-                    self.no_move_right_turn(base_action)
-                    print('no move right turn', self.agent.robot_head_direction)
-
-                base_action = self.move_turn(location, action, base_action)
-
-        self.grid.move(self.robot, base_action[1], base_action[0]) #move(tagOrId, xAmount, yAmount)
-        print('move',self.agent.robot_head_direction)
 
 
     def find_robot(self):
@@ -382,7 +337,7 @@ class DisplayGrid(tk.Tk):
         for i in self.texts:
             self.grid.delete(i)
         self.agent.policy_evaluation()
-        self.print_value_table(self.agent.value_table)
+        # self.print_value_table(self.agent.value_table)
 
 
     def improve_policy(self):
@@ -390,7 +345,7 @@ class DisplayGrid(tk.Tk):
         for i in self.arrows:
             self.grid.delete(i)
         self.agent.policy_improvement()
-        self.draw_from_policy(self.agent.policy_table)
+        # self.draw_from_policy(self.agent.policy_table)
 
     def draw_from_policy(self, policy_table):
         for i in range(HEIGHT):
@@ -429,41 +384,42 @@ class Env():
         self.transition_prob = TRANSITION_PROB
         self.width = WIDTH
         self.height = HEIGHT
-        self.heading = []
-        self.reward = [[0] * WIDTH for _ in range(HEIGHT)]
+        self.heading = HEADING
+
+        self.reward = [[[[0] for _ in range(HEADING)] for _ in range(WIDTH)] for _ in range(HEIGHT)]
         self.possible_actions = POSSIBLE_ACTIONS
-        self.reward[1][3] = 1 #reward 1 for goal
+        self.reward[1][3][:] = [[1]] * 12 #reward 1 for goal
 
-        self.reward[1][2] = -1  # reward -1 for lanes
-        self.reward[2][2] = -1
-        self.reward[3][2] = -1
-        self.reward[1][4] = -1
-        self.reward[2][4] = -1
-        self.reward[3][4] = -1
+        self.reward[1][2][:] = [[-1]] * 12  # reward -1 for lanes
+        self.reward[2][2][:] = [[-1]] * 12
+        self.reward[3][2][:] = [[-1]] * 12
+        self.reward[1][4][:] = [[-1]] * 12
+        self.reward[2][4][:] = [[-1]] * 12
+        self.reward[3][4][:] = [[-1]] * 12
 
-        self.reward[0][0] = -100  # reward -100 for borders
-        self.reward[0][1] = -100
-        self.reward[0][2] = -100
-        self.reward[0][3] = -100
-        self.reward[0][4] = -100
-        self.reward[0][5] = -100
+        self.reward[0][0][:] = [[-100]] * 12  # reward [[-100]] * 12 for borders
+        self.reward[0][1][:] = [[-100]] * 12
+        self.reward[0][2][:] = [[-100]] * 12
+        self.reward[0][3][:] = [[-100]] * 12
+        self.reward[0][4][:] = [[-100]] * 12
+        self.reward[0][5][:] = [[-100]] * 12
 
-        self.reward[5][0] = -100
-        self.reward[5][1] = -100
-        self.reward[5][2] = -100
-        self.reward[5][3] = -100
-        self.reward[5][4] = -100
-        self.reward[5][5] = -100
+        self.reward[5][0][:] = [[-100]] * 12
+        self.reward[5][1][:] = [[-100]] * 12
+        self.reward[5][2][:] = [[-100]] * 12
+        self.reward[5][3][:] = [[-100]] * 12
+        self.reward[5][4][:] = [[-100]] * 12
+        self.reward[5][5][:] = [[-100]] * 12
 
-        self.reward[1][0] = -100
-        self.reward[2][0] = -100
-        self.reward[3][0] = -100
-        self.reward[4][0] = -100
+        self.reward[1][0][:] = [[-100]] * 12
+        self.reward[2][0][:] = [[-100]] * 12
+        self.reward[3][0][:] = [[-100]] * 12
+        self.reward[4][0][:] = [[-100]] * 12
 
-        self.reward[1][5] = -100
-        self.reward[2][5] = -100
-        self.reward[3][5] = -100
-        self.reward[4][5] = -100
+        self.reward[1][5][:] = [[-100]] * 12
+        self.reward[2][5][:] = [[-100]] * 12
+        self.reward[3][5][:] = [[-100]] * 12
+        self.reward[4][5][:] = [[-100]] * 12
 
 
         self.all_state = []
@@ -472,17 +428,47 @@ class Env():
 
         for x in range(WIDTH):
             for y in range(HEIGHT):
-                state = [y, x] #y is row, x is column
-                self.all_state.append(state)
+                for h in range(HEADING):
+                    state = [y, x, h] #y is row, x is column
+                    self.all_state.append(state)
 
 
     def get_reward(self, state, action):
         next_state = self.state_after_action(state, action)
-        return self.reward[next_state[0]][next_state[1]]
+        reward = self.reward[next_state[0]][next_state[1]][next_state[2]][0]
+        return reward
 
-    def state_after_action(self, state, action_index):
-        action = ACTIONS[action_index] #north, east, south, west
-        return self.check_boundary([state[0] + action[0], state[1] + action[1]])
+    def state_after_action(self, state, action_index): #state - [r, c, h]
+        #move forward: 1, no move: 0, move backward: -1
+        if state[2] in [11, 0, 1]: #north_y
+            if ACTIONS[action_index] == 1: #action index: 0, 1, 2, #ACTIONS: 1, 0, -1
+                action = (-1, 0)
+            elif ACTIONS[action_index] == 0:
+                action = (0, 0)
+            elif ACTIONS[action_index] == -1:
+                action = (1, 0)
+        elif state[2] in [2, 3, 4]:
+            if ACTIONS[action_index] == 1: # forward, action index: 0, 1, 2, #ACTIONS: 1, 0, -1
+                action = (0, 1)
+            elif ACTIONS[action_index] == 0: #no move
+                action = (0, 0)
+            elif ACTIONS[action_index] == -1: #backward
+                action = (0, -1)
+        elif state[2] in [5, 6, 7]:
+            if ACTIONS[action_index] == 1: #action index: 0, 1, 2, #ACTIONS: 1, 0, -1
+                action = (1, 0)
+            elif ACTIONS[action_index] == 0: #no move
+                action = (0, 0)
+            elif ACTIONS[action_index] == -1: #backward
+                action = (-1, 0)
+        elif state[2] in [8, 9, 10]:
+            if ACTIONS[action_index] == 1: # forward, action index: 0, 1, 2, #ACTIONS: 1, 0, -1
+                action = (0, -1)
+            elif ACTIONS[action_index] == 0: #no move
+                action = (0, 0)
+            elif ACTIONS[action_index] == -1: #backward
+                action = (0, 1)
+        return self.check_boundary([state[0] + action[0], state[1] + action[1], state[2]])
 
     @staticmethod
     def check_boundary(state):
@@ -502,4 +488,4 @@ class Env():
         return state
 
     def get_all_states(self):
-        return self.all_state
+        return self.all_state #state[row][ccolumn][heading]

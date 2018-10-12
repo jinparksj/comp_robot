@@ -95,6 +95,7 @@ if __name__ == '__main__':
             temp_value_table = value_iteration.value_table
             grid_world.calculate_value()
 
+
         final = time.time()
 
         operating_time = final-start
