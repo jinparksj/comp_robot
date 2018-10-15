@@ -21,7 +21,7 @@ class PolicyIteration():
         self.robot_head_direction = 6 #initial condition
         self.policy_table[1][3][:] =[[]]  #location of goal
         self.discount_factor = discount_factor
-        self.pe = 0
+        self.pe = 0.25
 
     def transition_prob(self):
 
@@ -43,12 +43,12 @@ class PolicyIteration():
                 state_pe1 = [state[0], state[1], np.mod(state[2] + 1, 12)]
                 next_state_pe1 = self.env.state_after_action(state_pe1, action)
                 self.prob_table[state_pe1[0]][state_pe1[1]][state_pe1[2]][action] \
-                    [next_state_pe1[0]][next_state_pe1[1]][next_state_pe1[2]] = self.pe
+                    [next_state_pe1[0]][next_state_pe1[1]][next_state_pe1[2]] += self.pe
 
                 state_pe2 = [state[0], state[1], np.mod(state[2] - 1, 12)]
                 next_state_pe2 = self.env.state_after_action(state_pe2, action)
                 self.prob_table[state_pe2[0]][state_pe2[1]][state_pe2[2]][action]\
-                    [next_state_pe2[0]][next_state_pe2[1]][next_state_pe2[2]] = self.pe
+                    [next_state_pe2[0]][next_state_pe2[1]][next_state_pe2[2]] += self.pe
 
 
     # def transition_prob(self):

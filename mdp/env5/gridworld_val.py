@@ -25,10 +25,10 @@ class DisplayGrid(tk.Tk):
         self.arrows = []
         self.env = Env()
         self.agent = agent
-        self.evalCount = 0
+        self.iterCount = 0
         self.improvCount = 0
         self.is_moving = 0
-
+        self.pe = 0.25
         (self.north, self.east, self.south, self.west), self.shapes = self.load_images()
         #shapes: 0-robot, 1-border, 2-lane, 3-goal
         self.grid = self._build_grid()
@@ -82,12 +82,12 @@ class DisplayGrid(tk.Tk):
 
         #buttons
         #1. Policy Evaluation
-        eval_button = Button(self, text = "P.Evaluate", command = self.evaluate_policy)
+        eval_button = Button(self, text = "ValCalculate", command = self.calculate_value)
         eval_button.configure(width = 10, activebackground="#b5e533")
         grid.create_window(WIDTH * UNIT * 0.13, HEIGHT * UNIT + 13, window=eval_button)
 
         #2. Policy Improvement
-        pol_button = Button(self, text = "P.Improve", command = self.improve_policy)
+        pol_button = Button(self, text = "DispPolicy", command = self.display_optimal_policy)
         pol_button.configure(width = 10, activebackground="#b5e533")
         grid.create_window(WIDTH * UNIT * 0.37, HEIGHT * UNIT + 13, window=pol_button)
 
@@ -97,7 +97,7 @@ class DisplayGrid(tk.Tk):
         grid.create_window(WIDTH * UNIT * 0.62, HEIGHT * UNIT + 13, window=pol_button)
 
         # 4. Reset
-        pol_button = Button(self, text="Reset", command=self.reset)
+        pol_button = Button(self, text="Reset", command=self.clear)
         pol_button.configure(width=10,activebackground="#b5e533")
         grid.create_window(WIDTH * UNIT * 0.87, HEIGHT * UNIT + 13, window=pol_button)
 
@@ -156,9 +156,9 @@ class DisplayGrid(tk.Tk):
 
         return grid
 
-    def reset(self):
+    def clear(self):
         if self.is_moving == 0:
-            self.evalCount = 0
+            self.iterCount = 0
             self.improvCount = 0
             for i in self.texts:
                 self.grid.delete(i)
@@ -167,10 +167,9 @@ class DisplayGrid(tk.Tk):
                 self.grid.delete(i)
 
             self.agent.value_table = [[[0. for _ in range(HEADING)] for _ in  range(WIDTH)] for _ in range(HEIGHT)]
-            self.agent.policy_table = [[[[1/7, 1/7, 1/7, 1/7, 1/7, 1/7, 1/7] for _ in range(HEADING)] for _ in range(WIDTH)] for _ in range(HEIGHT)]
-            self.agent.policy_table[1][3] = []
             x, y = self.grid.coords(self.robot)
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
+
 
 
     def text_value(self, row, col, contents, font = 'Times', size = 10, style = 'normal', anchor='nw'):
@@ -188,12 +187,6 @@ class DisplayGrid(tk.Tk):
         return self.texts.append(text)
 
 
-    def print_value_table(self, value_table):
-        for i in range(HEIGHT): #row
-            for j in range(WIDTH): #col
-                    self.text_value(i, j, round(np.average(value_table[i][j], axis=0), 2))
-
-
     def turn_action(self, heading, turn):
         if turn == 'left':
             heading = np.mod(heading - 1, 12)
@@ -202,7 +195,6 @@ class DisplayGrid(tk.Tk):
         elif turn == 'noturn':
             heading = heading
         return heading
-
 
     def robot_move_display(self, action):
 
@@ -278,6 +270,8 @@ class DisplayGrid(tk.Tk):
         self.grid.move(self.robot, base_action[1], base_action[0]) #move(tagOrId, xAmount, yAmount)
         self.render()
 
+
+
     def find_robot(self):
         temp = self.grid.coords(self.robot)
         x = (temp[0] / 100) - 0.5
@@ -292,37 +286,43 @@ class DisplayGrid(tk.Tk):
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
 
             y, x = self.find_robot()
-            while len(self.agent.policy_table[y][x]) != 0:
+            while len(self.agent.get_action([y, x, self.agent.robot_head_direction])) != 0:
+                action = np.random.choice(self.agent.get_action([y, x, self.agent.robot_head_direction]), 1)[0]
                 y, x = self.find_robot()
                 if y == 1 and x == 3:
                     self.is_moving = 0
                     return
                 print(y, x, self.agent.robot_head_direction)
-                self.draw_one_arrow(y, x, self.agent.policy_table[y][x][self.agent.robot_head_direction])
-                self.after(100, self.robot_move_display(self.agent.get_action([y, x, self.agent.robot_head_direction])))
+                self.draw_one_arrow(y, x, action)
+                self.after(100, self.robot_move_display(action))
+                y, x = self.find_robot()
 
             self.is_moving = 0
 
 
 
-    def evaluate_policy(self):
-        self.evalCount += 1
+    def calculate_value(self):
+        self.iterCount += 1
         for i in self.texts:
             self.grid.delete(i)
-        self.agent.policy_evaluation()
+        self.agent.value_iteration()
         self.print_value_table(self.agent.value_table)
 
 
-    def improve_policy(self):
+    def display_optimal_policy(self):
         self.improvCount += 1
-        for i in self.arrows:
-            self.grid.delete(i)
-        self.agent.policy_improvement()
+        # for i in self.arrows:
+        #     self.grid.delete(i)
+        # for state in self.env.get_all_states():
+        #     action = self.agent.get_action(state)
+
+    def print_value_table(self, value_table):
+        for i in range(HEIGHT): #row
+            for j in range(WIDTH): #col
+                    self.text_value(i, j, round(np.average(value_table[i][j], axis=0), 2))
 
 
-
-
-    def draw_one_arrow(self, row, col, policy):
+    def draw_one_arrow(self, row, col, action):
         if row == 1 and col == 3:
             return
 
@@ -330,46 +330,41 @@ class DisplayGrid(tk.Tk):
         # move forward left, move forward right, move forward no turn, : 0, 1, 2
         # move backward left, move backward right, move backward no turn, : 3, 4, 5
         # no move no turn: 6
-        val = 0.
-        for i in range(len(policy)):
-            if policy[i] > 0.0:
-                val = val + policy[i]
-                if round(val, 1) ==1:
-                    if i in [0, 1, 2]:
-                        if self.agent.robot_head_direction in [11, 0, 1]:
-                            origin_x, origin_y = 50 + (UNIT * col), 10 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.north))
+        if action in [0, 1, 2]:
+            if self.agent.robot_head_direction in [11, 0, 1]:
+                origin_x, origin_y = 50 + (UNIT * col), 10 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.north))
 
-                        elif self.agent.robot_head_direction in [2, 3, 4]:
-                            origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.east))
+            elif self.agent.robot_head_direction in [2, 3, 4]:
+                origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.east))
 
-                        elif self.agent.robot_head_direction in [5, 6, 7]:
-                            origin_x, origin_y = 50 + (UNIT * col), 90 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.south))
+            elif self.agent.robot_head_direction in [5, 6, 7]:
+                origin_x, origin_y = 50 + (UNIT * col), 90 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.south))
 
-                        elif self.agent.robot_head_direction in [8, 9, 10]:
-                            origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.west))
-                        return
+            elif self.agent.robot_head_direction in [8, 9, 10]:
+                origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.west))
+            return
 
-                    elif i in [3, 4, 5]:
-                        if self.agent.robot_head_direction in [11, 0, 1]:
-                            origin_x, origin_y = 50 + (UNIT * col), 90 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.south))
+        elif action in [3, 4, 5]:
+            if self.agent.robot_head_direction in [11, 0, 1]:
+                origin_x, origin_y = 50 + (UNIT * col), 90 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.south))
 
-                        elif self.agent.robot_head_direction in [2, 3, 4]:
-                            origin_x, origin_y = 10 + (UNIT * col), 50 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.west))
+            elif self.agent.robot_head_direction in [2, 3, 4]:
+                origin_x, origin_y = 10 + (UNIT * col), 50 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.west))
 
-                        elif self.agent.robot_head_direction in [5, 6, 7]:
-                            origin_x, origin_y = 50 + (UNIT * col), 10 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.north))
+            elif self.agent.robot_head_direction in [5, 6, 7]:
+                origin_x, origin_y = 50 + (UNIT * col), 10 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.north))
 
-                        elif self.agent.robot_head_direction in [8, 9, 10]:
-                            origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
-                            self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.east))
-                        return
+            elif self.agent.robot_head_direction in [8, 9, 10]:
+                origin_x, origin_y = 90 + (UNIT * col), 50 + (UNIT * row)
+                self.arrows.append(self.grid.create_image(origin_x, origin_y, image=self.east))
+            return
 
 
     def render(self):
@@ -393,13 +388,13 @@ class Env():
         # no move no turn: 6
 
         # #PSET2 1,2,3,4
-        # self.reward[1][3][:] = [[1]] * 12 #reward 1 for goal
+        self.reward[1][3][:] = [[1]] * 12  # reward 1 for goal
 
-        #PSET2 5
-        self.reward[1][3][:] = [[0]] * 12 #reward 1 for goal
-        self.reward[1][3][11] = [1]  # reward 1 for goal
-        self.reward[1][3][0] = [1]  # reward 1 for goal
-        self.reward[1][3][1] = [1]  # reward 1 for goal
+        # PSET2 5
+        # self.reward[1][3][:] = [[0]] * 12 #reward 1 for goal
+        # self.reward[1][3][11] = [1]  # reward 1 for goal
+        # self.reward[1][3][0] = [1]  # reward 1 for goal
+        # self.reward[1][3][1] = [1]  # reward 1 for goal
 
         self.reward[1][2][:] = [[-10]] * 12  # reward -1 for lanes
         self.reward[2][2][:] = [[-10]] * 12
@@ -432,15 +427,12 @@ class Env():
         self.reward[3][5][:] = [[-100]] * 12
         self.reward[4][5][:] = [[-100]] * 12
 
-
         self.all_state = []
-
-
 
         for x in range(WIDTH):
             for y in range(HEIGHT):
                 for h in range(HEADING):
-                    state = [y, x, h] #y is row, x is column
+                    state = [y, x, h]  # y is row, x is column
                     self.all_state.append(state)
 
 
@@ -556,6 +548,7 @@ class Env():
 
         return self.check_boundary([state[0] + action[0], state[1] + action[1], heading])
 
+
     @staticmethod
     def check_boundary(state):
         if state[0] < 0:
@@ -573,7 +566,5 @@ class Env():
             state[1] = state[1]
         return state
 
-
-
     def get_all_states(self):
-        return self.all_state #state[row][ccolumn][heading]
+        return self.all_state
