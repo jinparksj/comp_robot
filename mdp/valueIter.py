@@ -1,5 +1,5 @@
 import random
-from hw2_mdp.env3.gridworld_val import DisplayGrid, Env
+from mdp.env3.gridworld_val import DisplayGrid, Env
 import numpy as np
 import time
 
