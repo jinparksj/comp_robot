@@ -51,36 +51,6 @@ class PolicyIteration():
                     [next_state_pe2[0]][next_state_pe2[1]][next_state_pe2[2]] += self.pe
 
 
-    # def transition_prob(self):
-    #
-    #     noise = abs(np.random.random(1))
-    #
-    #     if noise < self.pe:
-    #         prerot = 1  # pre-rotation right
-    #     elif self.pe <= noise and noise <= 2 * self.pe:
-    #         prerot = -1  # pre-rotation left
-    #     else:
-    #         prerot = 0
-    #
-    #
-    #
-    #     for state in self.env.get_all_states():#state[row][ccolumn][heading]
-    #         #state[0]: row, state[1]: col, state[2]: h
-    #
-    #         if '[1, 3, ' in str(state): #goal location
-    #             self.prob_table[state[0]][state[1]][state[2]] = 0.
-    #             continue
-    #
-    #
-    #         # move forward left, move forward right, move forward no turn, : 0, 1, 2
-    #         # move backward left, move backward right, move backward no turn, : 3, 4, 5
-    #         # no move no turn: 6
-    #         for action in self.env.possible_actions:
-    #             if action != 6:
-    #                 state[2] = np.mod(state[2] + prerot, 12)
-    #
-    #             next_state = self.env.state_after_action(state, action)
-    #             self.prob_table[state[0]][state[1]][state[2]][action][next_state[0]][next_state[1]][next_state[2]] = 1
 
 
 
@@ -204,7 +174,9 @@ if __name__ == '__main__':
         temp_value_table = policy_iteration.value_table
         grid_world.evaluate_policy()
         grid_world.improve_policy()
-        print(temp_value_table)
+
+    grid_world.move_by_policy()
+
 
     # print(policy_iteration.value_table)
     final = time.time()
@@ -212,4 +184,5 @@ if __name__ == '__main__':
     operating_time = final-start
     print(operating_time)
     grid_world.mainloop()
+
     print('done')

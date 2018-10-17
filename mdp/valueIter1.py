@@ -34,12 +34,12 @@ class ValueIteration():
 
                 state_pe1 = [state[0], state[1], np.mod(state[2] + 1, 12)]
                 next_state_pe1 = self.env.state_after_action(state_pe1, action)
-                self.prob_table[state[0]][state[1]][state[2]][action] \
+                self.prob_table[state_pe1[0]][state_pe1[1]][state_pe1[2]][action] \
                     [next_state_pe1[0]][next_state_pe1[1]][next_state_pe1[2]] += self.pe
 
                 state_pe2 = [state[0], state[1], np.mod(state[2] - 1, 12)]
                 next_state_pe2 = self.env.state_after_action(state_pe2, action)
-                self.prob_table[state[0]][state[1]][state[2]][action]\
+                self.prob_table[state_pe2[0]][state_pe2[1]][state_pe2[2]][action]\
                     [next_state_pe2[0]][next_state_pe2[1]][next_state_pe2[2]] += self.pe
 
     # def transition_prob(self):
@@ -145,7 +145,8 @@ if __name__ == '__main__':
     while temp_value_table != value_iteration.value_table:
         temp_value_table = value_iteration.value_table
         grid_world.calculate_value()
-        print(temp_value_table)
+        # print(temp_value_table)
+    grid_world.move_by_policy()
 
     final = time.time()
 

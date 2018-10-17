@@ -285,22 +285,31 @@ class DisplayGrid(tk.Tk):
         return int(y), int(x)
 
     def move_by_policy(self):
-        if self.improvCount != 0 and self.is_moving != 1:
+        if self.is_moving != 1:
             self.is_moving = 1
 
             x, y = self.grid.coords(self.robot)
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
 
             y, x = self.find_robot()
+
+
+            #for 3.(h)
+            # self.agent.policy_table[1][1][6] = [1., 0., 0., 0., 0., 0., 0.]
+            # self.agent.policy_table[2][1][5] = [0., 0., 0., 1., 0., 0., 0.]
+            # self.agent.policy_table[1][1][4] = [1., 0., 0., 0., 0., 0., 0.]
+            # self.agent.policy_table[1][2][3] = [0., 0., 1., 0., 0., 0., 0.]
+
             while len(self.agent.policy_table[y][x]) != 0:
+                # print(self.agent.value_table[y][x][self.agent.robot_head_direction], y, x, self.agent.robot_head_direction)
+                print(y, x, self.agent.robot_head_direction, self.agent.value_table[y][x][self.agent.robot_head_direction])
                 y, x = self.find_robot()
                 if y == 1 and x == 3:
                     self.is_moving = 0
                     return
-                print(y, x, self.agent.robot_head_direction)
                 self.draw_one_arrow(y, x, self.agent.policy_table[y][x][self.agent.robot_head_direction])
                 self.after(100, self.robot_move_display(self.agent.get_action([y, x, self.agent.robot_head_direction])))
-
+                y, x = self.find_robot()
             self.is_moving = 0
 
 
@@ -373,7 +382,7 @@ class DisplayGrid(tk.Tk):
 
 
     def render(self):
-        time.sleep(0.5)
+        #time.sleep(0.5)
         self.grid.tag_raise(self.robot)
         self.update()
 

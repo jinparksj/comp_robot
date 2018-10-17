@@ -84,22 +84,22 @@ class DisplayGrid(tk.Tk):
         #1. Policy Evaluation
         eval_button = Button(self, text = "ValCalculate", command = self.calculate_value)
         eval_button.configure(width = 10, activebackground="#b5e533")
-        grid.create_window(WIDTH * UNIT * 0.13, HEIGHT * UNIT + 13, window=eval_button)
+        grid.create_window(WIDTH * UNIT * 0.2, HEIGHT * UNIT + 13, window=eval_button)
 
-        #2. Policy Improvement
-        pol_button = Button(self, text = "DispPolicy", command = self.display_optimal_policy)
-        pol_button.configure(width = 10, activebackground="#b5e533")
-        grid.create_window(WIDTH * UNIT * 0.37, HEIGHT * UNIT + 13, window=pol_button)
+        # #2. Policy Improvement
+        # pol_button = Button(self, text = "DispPolicy", command = self.display_optimal_policy)
+        # pol_button.configure(width = 10, activebackground="#b5e533")
+        # grid.create_window(WIDTH * UNIT * 0.37, HEIGHT * UNIT + 13, window=pol_button)
 
         # 3. Move
         pol_button = Button(self, text="Move", command=self.move_by_policy)
         pol_button.configure(width=10, activebackground="#b5e533")
-        grid.create_window(WIDTH * UNIT * 0.62, HEIGHT * UNIT + 13, window=pol_button)
+        grid.create_window(WIDTH * UNIT * 0.5, HEIGHT * UNIT + 13, window=pol_button)
 
         # 4. Reset
         pol_button = Button(self, text="Reset", command=self.clear)
         pol_button.configure(width=10,activebackground="#b5e533")
-        grid.create_window(WIDTH * UNIT * 0.87, HEIGHT * UNIT + 13, window=pol_button)
+        grid.create_window(WIDTH * UNIT * 0.8, HEIGHT * UNIT + 13, window=pol_button)
 
         # Create grid
         for col in range(0, WIDTH * UNIT, UNIT): #draw vertical line
@@ -279,23 +279,30 @@ class DisplayGrid(tk.Tk):
         return int(y), int(x)
 
     def move_by_policy(self):
-        if self.improvCount != 0 and self.is_moving != 1:
+        if self.is_moving != 1:
             self.is_moving = 1
+            self.improvCount += 1
 
             x, y = self.grid.coords(self.robot)
             self.grid.move(self.robot, UNIT / 2 - x + 100, UNIT / 2 - y + 100)
 
             y, x = self.find_robot()
+            print(y, x, self.agent.robot_head_direction,
+                  self.agent.value_table[y][x][self.agent.robot_head_direction])
             while len(self.agent.get_action([y, x, self.agent.robot_head_direction])) != 0:
-                action = np.random.choice(self.agent.get_action([y, x, self.agent.robot_head_direction]), 1)[0]
                 y, x = self.find_robot()
+                action = np.random.choice(self.agent.get_action([y, x, self.agent.robot_head_direction]), 1)[0]
+
                 if y == 1 and x == 3:
                     self.is_moving = 0
                     return
-                print(y, x, self.agent.robot_head_direction)
+
                 self.draw_one_arrow(y, x, action)
                 self.after(100, self.robot_move_display(action))
                 y, x = self.find_robot()
+                print(y, x, self.agent.robot_head_direction,
+                      self.agent.value_table[y][x][self.agent.robot_head_direction])
+
 
             self.is_moving = 0
 
@@ -309,8 +316,8 @@ class DisplayGrid(tk.Tk):
         self.print_value_table(self.agent.value_table)
 
 
-    def display_optimal_policy(self):
-        self.improvCount += 1
+    # def display_optimal_policy(self):
+    #     self.improvCount += 1
         # for i in self.arrows:
         #     self.grid.delete(i)
         # for state in self.env.get_all_states():
@@ -368,7 +375,7 @@ class DisplayGrid(tk.Tk):
 
 
     def render(self):
-        time.sleep(0.5)
+        # time.sleep(0.5)
         self.grid.tag_raise(self.robot)
         self.update()
 
