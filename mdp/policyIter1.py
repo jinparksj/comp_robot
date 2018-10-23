@@ -21,7 +21,7 @@ class PolicyIteration():
         self.robot_head_direction = 6 #initial condition
         self.policy_table[1][3][:] =[[]]  #location of goal
         self.discount_factor = discount_factor
-        self.pe = 0.25
+        self.pe = 0
 
     def transition_prob(self):
 
