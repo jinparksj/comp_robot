@@ -2,6 +2,8 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
+
+
 # Estimation parameter of EKF
 Q = np.diag([0.1, 0.1, math.radians(1.0), 1.0])**2 # math.radians: Convert angle x from degrees to radians.
 R = np.diag([1.0, math.radians(40.0)])**2
