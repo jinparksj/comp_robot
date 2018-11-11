@@ -10,6 +10,7 @@ import numpy as np
 import copy
 import matplotlib as mlp
 from matplotlib.transforms import Affine2D
+from matplotlib.animation import FuncAnimation
 
 
 class RRT():
@@ -83,9 +84,12 @@ class RRT():
 
         path = [[self.goal.x, self.goal.y, self.goal.theta]]
         lastIndex = len(self.nodeList) - 1
+        prenodex = self.goal.x
+        prenodey = self.goal.y
         while self.nodeList[lastIndex].parent is not None:
             node = self.nodeList[lastIndex]
-            path.append([node.x , node.y, node.theta])
+            node.theta = np.arctan2(prenodey - node.y, prenodex - node.x)
+            path.append([node.x, node.y, node.theta])
             lastIndex = node.parent
         path.append([self.start.x, self.start.y, self.start.theta])
 
@@ -240,7 +244,49 @@ def lineCollisionCheck(point1, point2, obstacleList):
 
     return True
 
+# def main(fig):
+#     print("RRT path planning")
+#
+#
+#     obstacleList = [(300, 400, 100), (300, 500, 100), (300, 600, 100), (300, 700, 100), (300, 800, 100),
+#                     (300, 900, 100)]
+#     onewayList = [(100, 400, 100), (100, 500, 100), (100, 600, 100), (100, 700, 100), (100, 800, 100),
+#                   (100, 900, 100),
+#                   (200, 400, 100), (200, 500, 100), (200, 600, 100), (200, 700, 100), (200, 800, 100),
+#                   (200, 900, 100)]
+#
+#     rrt = RRT(start=[115, 115, np.arctan2(600 - 115, 600 - 115)], goal=[600, 600, np.arctan2(600 - 115, 600 - 115)], \
+#               theta=0, size=115, randArea=[0, 700], obstacleList=obstacleList, onewayList=onewayList, expandDis=10)
+#     path = rrt.planning(animation=True)
+#
+#     # smoothing
+#     maxIter = 2000
+#     smoothPath = PathSmoothing(path, maxIter, obstacleList)
+#
+#     rrt.DrawGraph()
+#     plt.plot([x for (x, y, theta) in smoothPath], [y for (x, y, theta) in smoothPath], '-b')
+#     # plt.plot([x for (x, y) in smoothPath], [y for (x, y) in smoothPath], '-b')
+#
+#     for (x, y, theta) in list(reversed(smoothPath)):
+#         print('(', x, y, theta, ')')
+#         # circular robot
+#         # plt.plot(x, y, '', ms = 115)
+#         rect_robot = mlp.patches.Rectangle((x - 42.5, y - 70), 85, 80, edgecolor='black', fill=False)
+#         rect_robot_center = mlp.patches.Rectangle((x - 42.5, y), 85, 10, edgecolor='red', fill=False)
+#         t = Affine2D().rotate_around(x, y, -theta)
+#         rect_robot.set_transform(t + plt.gca().transData)
+#         rect_robot_center.set_transform(t + plt.gca().transData)
+#         fig.add_subplot(111).add_patch(rect_robot)
+#         fig.add_subplot(111).add_patch(rect_robot_center)
+#         plt.pause(0.01)
+#
+#     plt.grid(True)
+#     return None
+
+
 if __name__ == "__main__":
+
+    # fig = plt.figure()
     print("RRT path planning")
     fig = plt.figure()
 
@@ -275,6 +321,8 @@ if __name__ == "__main__":
         plt.pause(0.01)
 
     plt.grid(True)
+    # animGIF = FuncAnimation(fig, main)
+    # animGIF.save('rrt.gif', dpi=80, writer='imagemagick')
     plt.show()
 
 
