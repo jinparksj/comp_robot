@@ -11,7 +11,9 @@ import copy
 import matplotlib as mlp
 from matplotlib.transforms import Affine2D
 from matplotlib.animation import FuncAnimation
+import time
 
+DT = 0.1
 
 class RRT():
     def __init__(self, start, goal, size, obstacleList, onewayList, randArea, theta, expandDis = 1.0, goalSampleRate = 5):
@@ -33,6 +35,7 @@ class RRT():
         self.obstacleList = obstacleList
         self.sizeofrobot = size
         self.onewayList = onewayList
+        # self.rightwayList = rightwayList
 
     def planning(self, animation = True):
         self.nodeList = [self.start]
@@ -63,16 +66,17 @@ class RRT():
             if not self._DirectionCheck(newNode, self.onewayList):
                 continue
 
+            # if not self._RightDirectionCheck(newNode, self.rightwayList):
+            #     continue
+
             self.nodeList.append(newNode)
-            # print("nNodeList: ", len(self.nodeList))
-            # print("theta", self.theta)
 
             #check goal
             dx = newNode.x - self.goal.x
             dy = newNode.y - self.goal.y
             d = np.sqrt(dx ** 2 + dy ** 2)
             dangle = abs(newNode.theta - self.goal.theta)
-            if (d <= self.expandDis + self.sizeofrobot / 5) and dangle <= np.pi/7:
+            if (d <= self.expandDis + self.sizeofrobot / 5) and dangle <= np.pi/4:
                 print('robot is at the goal')
                 break
 
@@ -106,16 +110,21 @@ class RRT():
                 plt.plot([node.x, self.nodeList[node.parent].x], [node.y, self.nodeList[node.parent].y], "-g")
 
         for (ox, oy, size) in self.obstacleList:
-            plt.plot(ox, oy, "sk", ms = size)
+            plt.plot(ox, oy, "sk", ms = 0.8 * size)
 
         for (ox, oy, size) in self.onewayList:
             plt.plot(ox, oy, "sr", ms = size)
 
+        # for (ox, oy, size) in self.rightwayList:
+        #     plt.plot(ox, oy, "s", ms = size, markerfacecolor = "None", markeredgecolor='blue', markeredgewidth='5')
+
+
         plt.plot(self.start.x, self.start.y, "xr")
         plt.plot(self.goal.x, self.goal.y, "or", ms = 10)
-        plt.axis([0, 700, 0, 1000])
+        plt.axis([0, 800, 0, 1000])
         plt.grid(True)
         plt.pause(0.0001)
+
 
 
 
@@ -129,7 +138,7 @@ class RRT():
             dx = ox - node.x
             dy = oy - node.y
             d = np.sqrt(dx ** 2 + dy ** 2)
-            if d <= size + self.sizeofrobot: #collision case
+            if d <= size + self.sizeofrobot * 1.2: #collision case
                 return False
         return True #avoid collision
 
@@ -138,11 +147,25 @@ class RRT():
             dx = ox - node.x
             dy = oy - node.y
             d = np.sqrt(dx ** 2 + dy ** 2)
-            if (d <= size + self.sizeofrobot) and \
-                    not (node.theta <= np.rad2deg(315)\
-                                 and node.theta >= np.rad2deg(225)): #direction check
+            check_theta = np.arctan2(node.y - self.start.y, node.x - self.start.x)
+            if (d <= size + self.sizeofrobot * 1.2) and \
+                    not (check_theta <= np.deg2rad(315)\
+                                 and check_theta >= np.deg2rad(225)): #direction check
                 return False
         return True #avoid collision
+
+    # def _RightDirectionCheck(self, node, rightwayList):
+    #     for (ox, oy, size) in rightwayList:
+    #         dx = ox - node.x
+    #         dy = oy - node.y
+    #         d = np.sqrt(dx ** 2 + dy ** 2)
+    #         right_theta = np.arctan2(node.y - self.start.y, node.x - self.start.x)
+    #         if (d <= size + self.sizeofrobot) and \
+    #                 (right_theta <= np.deg2rad(270)\
+    #                              and right_theta >= np.deg2rad(90)): #direction check
+    #             return False
+    #     return True
+
 
 class Node():
     '''
@@ -165,9 +188,6 @@ def PathSmoothing(path, maxIter, obstacleList):
 
         point1 = GetTargetPoint(path, pickPoints[0])
         point2 = GetTargetPoint(path, pickPoints[1])
-
-        print(point1)
-        print(point2)
 
         if (point1[3] <= 0) or (point2[3] <= 0):
             continue
@@ -244,71 +264,148 @@ def lineCollisionCheck(point1, point2, obstacleList):
 
     return True
 
-# def main(fig):
-#     print("RRT path planning")
-#
-#
-#     obstacleList = [(300, 400, 100), (300, 500, 100), (300, 600, 100), (300, 700, 100), (300, 800, 100),
-#                     (300, 900, 100)]
-#     onewayList = [(100, 400, 100), (100, 500, 100), (100, 600, 100), (100, 700, 100), (100, 800, 100),
-#                   (100, 900, 100),
-#                   (200, 400, 100), (200, 500, 100), (200, 600, 100), (200, 700, 100), (200, 800, 100),
-#                   (200, 900, 100)]
-#
-#     rrt = RRT(start=[115, 115, np.arctan2(600 - 115, 600 - 115)], goal=[600, 600, np.arctan2(600 - 115, 600 - 115)], \
-#               theta=0, size=115, randArea=[0, 700], obstacleList=obstacleList, onewayList=onewayList, expandDis=10)
-#     path = rrt.planning(animation=True)
-#
-#     # smoothing
-#     maxIter = 2000
-#     smoothPath = PathSmoothing(path, maxIter, obstacleList)
-#
-#     rrt.DrawGraph()
-#     plt.plot([x for (x, y, theta) in smoothPath], [y for (x, y, theta) in smoothPath], '-b')
-#     # plt.plot([x for (x, y) in smoothPath], [y for (x, y) in smoothPath], '-b')
-#
-#     for (x, y, theta) in list(reversed(smoothPath)):
-#         print('(', x, y, theta, ')')
-#         # circular robot
-#         # plt.plot(x, y, '', ms = 115)
-#         rect_robot = mlp.patches.Rectangle((x - 42.5, y - 70), 85, 80, edgecolor='black', fill=False)
-#         rect_robot_center = mlp.patches.Rectangle((x - 42.5, y), 85, 10, edgecolor='red', fill=False)
-#         t = Affine2D().rotate_around(x, y, -theta)
-#         rect_robot.set_transform(t + plt.gca().transData)
-#         rect_robot_center.set_transform(t + plt.gca().transData)
-#         fig.add_subplot(111).add_patch(rect_robot)
-#         fig.add_subplot(111).add_patch(rect_robot_center)
-#         plt.pause(0.01)
-#
-#     plt.grid(True)
-#     return None
+
+class Controller():
+    def __init__(self, velx, vely, angvel, startpos, thetaList, velList): #path has x, y, theta
+        self.velx = velx
+        self.vely = vely
+        self.angvel = angvel
+        self.start_pos = startpos
+        self.dt = 1
+        self.theta = thetaList
+        self.vel = velList
+
+    def move(self):
+        temp_x = self.start_pos[0]
+        temp_y = self.start_pos[1]
+        temp_theta = self.start_pos[2]
+
+        velxList = self.velx
+        velyList = self.vely
+        angvelList = self.angvel
+        velList = self.vel
+
+        uList = [self.start_pos]
+        j = 0
+        for i in range(len(velxList)):
+            dist_x = velxList[i] * self.dt
+            dist_y = velyList[i] * self.dt
+            dist = velList[i] * self.dt
+            thetachange = angvelList[i] * self.dt
+            cur_theta = temp_theta + thetachange
+            if np.mod(i, 10) == 0:
+                prct_theta = thetaList[j]
+                j += 1
+            cur_x = temp_x + dist * np.cos(thetachange)
+            cur_y = temp_y + dist * np.sin(thetachange)
+
+
+
+            uList.append([cur_x, cur_y, cur_theta])
+
+            temp_x = cur_x
+            temp_y = cur_y
+            temp_theta = cur_theta
+
+
+
+        return uList
+
+
+
+def convert_path_to_desired_input(smoothpath): #total 1 second to get goal path
+    total_step = len(smoothpath)
+    dt = 1
+    np_path = np.array(smoothpath)
+    xList = list(np_path[:, 0])
+    yList = list(np_path[:, 1])
+    thetaList = list(np_path[:, 2])
+
+    extxList = []
+    extyList = []
+    extthetaList = []
+    distList = []
+    dthetaList = []
+
+    angvelList = []
+
+    velxList = []
+    velyList = []
+    velList = []
+
+
+    for i in range(total_step - 1):
+        dx = (xList[i + 1] - xList[i]) * dt
+        dy = (yList[i + 1] - yList[i]) * dt
+        ddist = np.sqrt((xList[i + 1] - xList[i]) ** 2 + (yList[i + 1] - yList[i]) ** 2) * dt
+        dtheta = (thetaList[i + 1] - thetaList[i]) * dt
+        for j in range(int(1/dt)):
+            extxList.append(xList[i] + j * dx)
+            extyList.append(yList[i] + j * dy)
+            extthetaList.append(thetaList[i] + j * dtheta)
+
+            distList.append(ddist)
+            dthetaList.append(dtheta)
+            # vel_x = dx / (dt * np.cos(thetaList[i]))
+            # vel_y = dy / (dt * np.sin(thetaList[i]))
+            vel_x = dx / dt
+            vel_y = dy / dt
+            vel = vel_x * np.cos(thetaList[i]) + vel_y * np.sin(thetaList[i])
+            # vel = ddist / dt
+            # ang_vel = dtheta / dt
+            # vel = dx / (0.01 * np.sin(thetaList[i]))
+            ang_vel = dtheta / dt
+            angvelList.append(ang_vel)
+            velxList.append(vel_x)
+            velyList.append(vel_y)
+            velList.append(vel)
+
+    return velxList, velyList, angvelList, thetaList, velList, xList, yList
 
 
 if __name__ == "__main__":
-
+    starttime = time.time()
     # fig = plt.figure()
     print("RRT path planning")
     fig = plt.figure()
 
-    obstacleList = [(300, 400, 100), (300, 500, 100), (300, 600, 100), (300, 700, 100), (300, 800, 100), (300, 900, 100)]
-    onewayList = [(100, 400, 100), (100, 500, 100), (100, 600, 100), (100, 700, 100), (100, 800, 100), (100, 900, 100),
-        (200, 400, 100), (200, 500, 100), (200, 600, 100), (200, 700, 100), (200, 800, 100), (200, 900, 100)]
 
-    rrt = RRT(start = [115, 115, np.arctan2(600-115, 600-115)], goal = [600, 600, np.arctan2(600-115, 600-115)], \
-              theta=0, size = 115, randArea=[0, 700], obstacleList=obstacleList, onewayList=onewayList, expandDis= 10)
+    obstacleList = [(300, 600, 200), (800, 100, 200)]
+    onewayList = [(100, 600, 200), (100, 700, 200), (100, 800, 200), (100, 900, 200),
+                  (200, 600, 200), (200, 700, 200), (200, 800, 200), (200, 900, 200)]
+
+    # rightwayList = [(100, 100, 200), (200, 100, 200), (300, 100, 200)]
+
+    print("planner working")
+    rrt = RRT(start = [115, 115, np.arctan2(700-115, 700-115)], goal = [700, 700, np.arctan2(700-115, 700-115)], \
+              theta=0, size = 115, randArea=[0, 800], obstacleList=obstacleList, onewayList=onewayList, expandDis=10)
     path = rrt.planning(animation=True)
 
-
+    print("smoothing trajectory")
     #smoothing
-    maxIter = 2000
+    maxIter = 1000
     smoothPath = PathSmoothing(path, maxIter, obstacleList)
+
+    print('smoothpath: ', list(reversed(smoothPath)))
 
     rrt.DrawGraph()
     plt.plot([x for (x, y, theta) in smoothPath], [y for (x, y, theta) in smoothPath], '-b')
-    # plt.plot([x for (x, y) in smoothPath], [y for (x, y) in smoothPath], '-b')
+
+    velx, vely, angvel, thetaList, velList, xList, yList = convert_path_to_desired_input(list(reversed(smoothPath)))
+
+    print('velocity: ', velList)
+    print('angular velocity: ', angvel)
+    startpos = [115, 115, np.arctan2(700 - 115, 700 - 115)]
+
+    ctrl = Controller(velx, vely, angvel, startpos, thetaList, velList)
+    uList = ctrl.move()
+
+    # print('final state: ', uList)
+
 
     for (x, y, theta) in list(reversed(smoothPath)):
-        print('(', x, y, theta, ')')
+    # for (x, y, theta) in uList:
+        # print('(', x, y, theta, ')')
         #circular robot
         # plt.plot(x, y, '', ms = 115)
         rect_robot = mlp.patches.Rectangle((x - 42.5, y - 70), 85, 80, edgecolor = 'black', fill=False)
@@ -323,6 +420,16 @@ if __name__ == "__main__":
     plt.grid(True)
     # animGIF = FuncAnimation(fig, main)
     # animGIF.save('rrt.gif', dpi=80, writer='imagemagick')
+    endtime = time.time()
+    operatingtime = endtime - starttime
+    print('operating time(s): ', operatingtime)
+
+    totaldist = 0
+    for i in range(len(xList)-1):
+        dist = np.sqrt((xList[i + 1] - xList[i]) ** 2 + (yList[i + 1] - yList[i]) ** 2)
+        totaldist += dist
+
+    print('trajectory efficiency(mm): ', totaldist)
     plt.show()
 
 

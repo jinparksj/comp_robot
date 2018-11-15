@@ -11,6 +11,7 @@ import copy
 import matplotlib as mlp
 from matplotlib.transforms import Affine2D
 from matplotlib.animation import FuncAnimation
+import time
 
 class RRTStar():
     def __init__(self, start, goal, size, obstacleList, onewayList, randArea, theta, expandDis = 1.0, goalSampleRate = 20, maxIter=600):
@@ -139,14 +140,14 @@ class RRTStar():
                 plt.plot([node.x, self.nodeList[node.parent].x], [node.y, self.nodeList[node.parent].y], "-g")
 
         for (ox, oy, size) in self.obstacleList:
-            plt.plot(ox, oy, "sk", ms = size)
+            plt.plot(ox, oy, "sk", ms = 0.8 * size)
 
         for (ox, oy, size) in self.onewayList:
             plt.plot(ox, oy, "sr", ms = size)
 
         plt.plot(self.start.x, self.start.y, "xr")
         plt.plot(self.goal.x, self.goal.y, "or", ms = 10)
-        plt.axis([0, 700, 0, 1000])
+        plt.axis([0, 800, 0, 1000])
         plt.grid(True)
         plt.pause(0.0001)
 
@@ -208,7 +209,7 @@ class RRTStar():
 
     def find_near_nodes(self, newNode):
         numbernode = len(self.nodeList)
-        coeff = self.expandDis * 50
+        coeff = self.expandDis * 20
         r = coeff * np.sqrt((np.log(numbernode) / numbernode))
         dlist = [(node.x - newNode.x) ** 2 + (node.y - newNode.y) ** 2 for node in self.nodeList]
         nearindices = [dlist.index(i) for i in dlist if i <= r ** 2]
@@ -233,9 +234,10 @@ class RRTStar():
             dx = ox - node.x
             dy = oy - node.y
             d = np.sqrt(dx ** 2 + dy ** 2)
-            if (d <= size + 1.5 * self.sizeofrobot) and \
-                    not (node.theta <= np.rad2deg(315)\
-                                 and node.theta >= np.rad2deg(225)): #direction check
+            check_theta = np.arctan2(node.y - self.start.y, node.x - self.start.x)
+            if (d <= size + self.sizeofrobot * 1.2) and \
+                    not (check_theta <= np.deg2rad(315)\
+                                 and check_theta >= np.deg2rad(225)): #direction check
                 return False
         return True #avoid collision
 
@@ -252,18 +254,106 @@ class Node():
         self.cost = 0.0
         self.parent = None
 
+class Controller():
+    def __init__(self, velx, vely, angvel, startpos, thetaList): #path has x, y, theta
+        self.velx = velx
+        self.vely = vely
+        self.angvel = angvel
+        self.start_pos = startpos
+        self.dt = 0.1
+        self.theta = thetaList
+
+    def move(self):
+        temp_x = self.start_pos[0]
+        temp_y = self.start_pos[1]
+        temp_theta = self.start_pos[2]
+
+        velxList = self.velx
+        velyList = self.vely
+        angvelList = self.angvel
+
+        uList = [self.start_pos]
+        j = 0
+        for i in range(len(velxList)):
+            dist_x = velxList[i] * self.dt
+            dist_y = velyList[i] * self.dt
+            thetachange = angvelList[i] * self.dt
+            cur_theta = temp_theta + thetachange
+            if np.mod(i, 10) == 0:
+                prct_theta = thetaList[j]
+                j += 1
+            cur_x = temp_x + dist_x * np.cos(prct_theta)
+            cur_y = temp_y + dist_y * np.sin(prct_theta)
+
+
+            uList.append([cur_x, cur_y, cur_theta])
+
+            temp_x = cur_x
+            temp_y = cur_y
+            temp_theta = cur_theta
+
+
+
+        return uList
+
+
+
+def convert_path_to_desired_input(smoothpath): #total 1 second to get goal path
+    total_step = len(smoothpath)
+    dt = 0.1
+    np_path = np.array(smoothpath)
+    xList = list(np_path[:, 0])
+    yList = list(np_path[:, 1])
+    thetaList = list(np_path[:, 2])
+
+    extxList = []
+    extyList = []
+    extthetaList = []
+    distList = []
+    dthetaList = []
+
+    velList = []
+    angvelList = []
+
+    velxList = []
+    velyList = []
+
+
+    for i in range(total_step - 1):
+        dx = (xList[i + 1] - xList[i]) * dt
+        dy = (yList[i + 1] - yList[i]) * dt
+        ddist = np.sqrt((xList[i + 1] - xList[i]) ** 2 + (yList[i + 1] - yList[i]) ** 2) * dt
+        dtheta = (thetaList[i + 1] - thetaList[i]) * dt
+        for j in range(int(1/dt)):
+            extxList.append(xList[i] + j * dx)
+            extyList.append(yList[i] + j * dy)
+            extthetaList.append(thetaList[i] + j * dtheta)
+
+            distList.append(ddist)
+            dthetaList.append(dtheta)
+            vel_x = dx / (dt * np.cos(thetaList[i]))
+            vel_y = dy / (dt * np.sin(thetaList[i]))
+            # vel = ddist / dt
+            # ang_vel = dtheta / dt
+            # vel = dx / (0.01 * np.sin(thetaList[i]))
+            ang_vel = dtheta / dt
+            angvelList.append(ang_vel)
+            velxList.append(vel_x)
+            velyList.append(vel_y)
+
+    return velxList, velyList, angvelList, thetaList
+
 
 if __name__ == '__main__':
     print("RRT path planning")
     fig = plt.figure()
 
-    obstacleList = [(300, 400, 100), (300, 500, 100), (300, 600, 100), (300, 700, 100), (300, 800, 100),
-                    (300, 900, 100)]
-    onewayList = [(100, 400, 100), (100, 500, 100), (100, 600, 100), (100, 700, 100), (100, 800, 100), (100, 900, 100),
-                  (200, 400, 100), (200, 500, 100), (200, 600, 100), (200, 700, 100), (200, 800, 100), (200, 900, 100)]
+    obstacleList = [(300, 600, 200)]
+    onewayList = [(100, 600, 200), (100, 700, 200), (100, 800, 200), (100, 900, 200),
+                  (200, 600, 200), (200, 700, 200), (200, 800, 200), (200, 900, 200)]
 
-    rrt = RRTStar(start=[115, 115, np.arctan2(600 - 115, 600 - 115)], goal=[600, 600, np.arctan2(600 - 115, 600 - 115)], \
-              theta=0, size=115, randArea=[0, 700], obstacleList=obstacleList, onewayList=onewayList, expandDis=10, maxIter=800)
+    rrt = RRTStar(start=[115, 115, np.arctan2(600 - 115, 700 - 115)], goal=[700, 600, np.arctan2(600 - 115, 700 - 115)], \
+              theta=0, size=115, randArea=[0, 700], obstacleList=obstacleList, onewayList=onewayList, expandDis=10, maxIter=1000)
     path = rrt.planning(animation=True)
 
 
@@ -271,8 +361,14 @@ if __name__ == '__main__':
 
     # plt.plot([x for (x, y) in smoothPath], [y for (x, y) in smoothPath], '-b')
 
+    velx, vely, angvel, thetaList = convert_path_to_desired_input(list(reversed(path)))
+    startpos = [115, 115, np.arctan2(700 - 115, 700 - 115)]
+
+    ctrl = Controller(velx, vely, angvel, startpos, thetaList)
+    uList = ctrl.move()
+
     for (x, y, theta) in list(reversed(path)):
-        print('(', x, y, theta, ')')
+        # print('(', x, y, theta, ')')
         # circular robot
         # plt.plot(x, y, '', ms = 115)
         rect_robot = mlp.patches.Rectangle((x - 42.5, y - 70), 85, 80, edgecolor='black', fill=False)
