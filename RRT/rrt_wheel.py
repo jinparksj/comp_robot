@@ -16,7 +16,7 @@ import time
 DT = 0.1
 
 class RRT():
-    def __init__(self, start, goal, size, obstacleList, onewayList, randArea, theta, expandDis = 1.0, goalSampleRate = 5):
+    def __init__(self, start, goal, size, obstacleList, onewayList, rightwayList, randArea, theta, expandDis = 1.0, goalSampleRate = 5):
         '''
         :param start: start position [x, y, theta]
         :param goal: goal position [x, y, theta]
@@ -35,7 +35,7 @@ class RRT():
         self.obstacleList = obstacleList
         self.sizeofrobot = size
         self.onewayList = onewayList
-        # self.rightwayList = rightwayList
+        self.rightwayList = rightwayList
 
     def planning(self, animation = True):
         self.nodeList = [self.start]
@@ -66,8 +66,8 @@ class RRT():
             if not self._DirectionCheck(newNode, self.onewayList):
                 continue
 
-            # if not self._RightDirectionCheck(newNode, self.rightwayList):
-            #     continue
+            if not self._RightDirectionCheck(newNode, self.rightwayList):
+                continue
 
             self.nodeList.append(newNode)
 
@@ -76,7 +76,7 @@ class RRT():
             dy = newNode.y - self.goal.y
             d = np.sqrt(dx ** 2 + dy ** 2)
             dangle = abs(newNode.theta - self.goal.theta)
-            if (d <= self.expandDis + self.sizeofrobot / 5) and dangle <= np.pi/4:
+            if (d <= self.expandDis + self.sizeofrobot / 5) and dangle <= np.pi/2:
                 print('robot is at the goal')
                 break
 
@@ -113,10 +113,10 @@ class RRT():
             plt.plot(ox, oy, "sk", ms = 0.8 * size)
 
         for (ox, oy, size) in self.onewayList:
-            plt.plot(ox, oy, "sr", ms = size)
+            plt.plot(ox, oy, "s", ms = size, markerfacecolor = "None", markeredgecolor='red', markeredgewidth='3')
 
-        # for (ox, oy, size) in self.rightwayList:
-        #     plt.plot(ox, oy, "s", ms = size, markerfacecolor = "None", markeredgecolor='blue', markeredgewidth='5')
+        for (ox, oy, size) in self.rightwayList:
+             plt.plot(ox, oy, "s", ms = size, markerfacecolor = "None", markeredgecolor='blue', markeredgewidth='3')
 
 
         plt.plot(self.start.x, self.start.y, "xr")
@@ -138,7 +138,7 @@ class RRT():
             dx = ox - node.x
             dy = oy - node.y
             d = np.sqrt(dx ** 2 + dy ** 2)
-            if d <= size + self.sizeofrobot * 1.2: #collision case
+            if d <= size + self.sizeofrobot: #collision case
                 return False
         return True #avoid collision
 
@@ -147,24 +147,25 @@ class RRT():
             dx = ox - node.x
             dy = oy - node.y
             d = np.sqrt(dx ** 2 + dy ** 2)
-            check_theta = np.arctan2(node.y - self.start.y, node.x - self.start.x)
-            if (d <= size + self.sizeofrobot * 1.2) and \
-                    not (check_theta <= np.deg2rad(315)\
-                                 and check_theta >= np.deg2rad(225)): #direction check
+            check_theta = np.arctan2(node.y - self.nodeList[-1].y, node.x - self.nodeList[-1].x)
+            if (d <= size + self.sizeofrobot) and \
+                    not (check_theta <= np.deg2rad(90)\
+                                 and check_theta >= np.deg2rad(-90)): #direction check
                 return False
         return True #avoid collision
 
-    # def _RightDirectionCheck(self, node, rightwayList):
-    #     for (ox, oy, size) in rightwayList:
-    #         dx = ox - node.x
-    #         dy = oy - node.y
-    #         d = np.sqrt(dx ** 2 + dy ** 2)
-    #         right_theta = np.arctan2(node.y - self.start.y, node.x - self.start.x)
-    #         if (d <= size + self.sizeofrobot) and \
-    #                 (right_theta <= np.deg2rad(270)\
-    #                              and right_theta >= np.deg2rad(90)): #direction check
-    #             return False
-    #     return True
+
+    def _RightDirectionCheck(self, node, rightwayList):
+        for (ox, oy, size) in rightwayList:
+            dx = ox - node.x
+            dy = oy - node.y
+            d = np.sqrt(dx ** 2 + dy ** 2)
+            check_theta = np.arctan2(node.y - self.nodeList[-1].y, node.x - self.nodeList[-1].x)
+            if (d <= size + self.sizeofrobot) and \
+                    not (check_theta <= np.deg2rad(180)\
+                                 and check_theta >= np.deg2rad(0)): #direction check
+                return False
+        return True
 
 
 class Node():
@@ -370,15 +371,19 @@ if __name__ == "__main__":
     fig = plt.figure()
 
 
-    obstacleList = [(300, 600, 200), (800, 100, 200)]
-    onewayList = [(100, 600, 200), (100, 700, 200), (100, 800, 200), (100, 900, 200),
-                  (200, 600, 200), (200, 700, 200), (200, 800, 200), (200, 900, 200)]
+    obstacleList = [(350, 800, 150), (350, 0, 150)]
+    onewayList = [(100, 100, 200), (100, 300, 200), (100, 500, 200), (100, 700, 200),
+                  (100, 900, 200)]
 
-    # rightwayList = [(100, 100, 200), (200, 100, 200), (300, 100, 200)]
+    rightwayList = [(600, 500, 200), (600, 700, 200)]
 
     print("planner working")
-    rrt = RRT(start = [115, 115, np.arctan2(700-115, 700-115)], goal = [700, 700, np.arctan2(700-115, 700-115)], \
-              theta=0, size = 115, randArea=[0, 800], obstacleList=obstacleList, onewayList=onewayList, expandDis=10)
+    # rrt = RRT(start = [115, 115, np.arctan2(700-115, 600-115)], goal = [600, 700, np.deg2rad(90)], \
+    #           theta=0, size = 115, randArea=[0, 800], obstacleList=obstacleList, onewayList=onewayList, expandDis=10)
+    rrt = RRT(start=[115, 115, np.arctan2(800 - 115, 600 - 115)], goal=[600, 800, np.deg2rad(180)], \
+              theta=0, size=115, randArea=[0, 800], obstacleList=obstacleList, onewayList=onewayList, expandDis=10,
+              rightwayList=rightwayList)
+
     path = rrt.planning(animation=True)
 
     print("smoothing trajectory")
